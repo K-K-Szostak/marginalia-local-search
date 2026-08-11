@@ -17,7 +17,10 @@ class WindowsLauncherTests(unittest.TestCase):
             root = Path(directory) / "Marginalia download (2)"
             root.mkdir()
             shutil.copy2(source, root / source.name)
-            (root / "requirements.txt").write_text("", encoding="utf-8")
+            app_root = root / "marginalia"
+            app_root.mkdir()
+            (app_root / "launcher.py").write_text("", encoding="utf-8")
+            (app_root / "requirements.txt").write_text("", encoding="utf-8")
             fake_bin = root / "fake-bin"
             fake_bin.mkdir()
             (fake_bin / "py.cmd").write_text("@exit /b 0\r\n", encoding="ascii")
@@ -34,7 +37,7 @@ class WindowsLauncherTests(unittest.TestCase):
             )
         output = result.stdout + result.stderr
         self.assertNotIn("was unexpected at this time", output)
-        self.assertIn(str(root / ".venv"), output)
+        self.assertIn(str(app_root / ".venv"), output)
 
 
 if __name__ == "__main__":

@@ -8,8 +8,12 @@ permissions:
   contents: read
 
 jobs:
-  windows:
-    runs-on: windows-latest
+  cross-platform:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

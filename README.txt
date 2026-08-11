@@ -2,16 +2,17 @@ MARGINALIA — PRIVATE LOCAL RESEARCH LIBRARY
 
 VERSION AND PLATFORM
 
-This is Marginalia v0.1.0-beta.3. The supported release platform is Windows
-10/11 on x64 computers. macOS and Linux support is planned but has not yet been
-implemented or verified. Do not describe this release as cross-platform.
+This is Marginalia v0.1.0-beta.4. One transparent source package supports
+Windows 10/11, Linux and macOS. Platform launchers share the same application
+code stored in the marginalia subfolder.
 
 QUICK START
 
-1. Double-click “Start Marginalia.cmd”.
-2. If Python 3.12 is missing, Marginalia offers to install the official package
-   through Windows Package Manager (winget). The download starts only after you
-   explicitly confirm it. You may decline and install Python manually instead.
+1. Use Start Marginalia.cmd on Windows, Start Marginalia.sh on Linux, or
+   Start Marginalia.command on macOS.
+2. If Python 3.12 is missing, the launcher explains the platform-specific
+   installation. Windows uses winget only after confirmation; macOS may use
+   Homebrew only after confirmation; Linux leaves system packages to the user.
 3. On the first run, the script creates .venv and installs the two pinned Python
    packages shown in requirements.txt.
 4. Choose a Zotero data folder, an Obsidian vault, or both.
@@ -23,10 +24,9 @@ environment for Marginalia's pinned packages. Existing valid .venv environments 
 reused. The command always runs the visible source files, so code changes are
 auditable and visible after restarting.
 
-To share Marginalia, send the source folder without private databases, source_snapshots,
-.venv, build or dist. The recipient needs Windows and internet access on the first
-run. Python 3.12 is reused when present or offered through winget when missing. After
-setup, ordinary BM25 use works offline.
+To share Marginalia, send the release ZIP without private databases,
+source_snapshots or .venv. The recipient needs internet access on the first run.
+Python 3.12 is reused when present. After setup, ordinary BM25 use works offline.
 
 SOURCE SAFETY AND REFRESHING
 
@@ -64,8 +64,8 @@ Every user-selected embedding model gets its own semantic index. After a library
 refresh, Marginalia rebuilds every embedding index that was previously ready.
 The current model and remaining model queue are saved during indexing, so restarting
 the computer resumes the exact unfinished queue. When AI has been enabled, Marginalia
-reuses an existing Ollama service or starts `ollama serve` itself if Ollama was not
-launched with Windows. Ollama is not started automatically for BM25-only users.
+reuses an existing Ollama service or starts `ollama serve` itself if Ollama is not
+already running. Ollama is not started automatically for BM25-only users.
 
 PRIVACY AND STORAGE
 
@@ -93,7 +93,7 @@ TROUBLESHOOTING
 - Marginalia opens on an installation-specific localhost address.
 - It never redirects to another Marginalia installation when a port is occupied.
 - Detailed refresh output is written to refresh.log.
-- The Windows release archive includes an English Tesseract OCR runtime. A source-only
-  checkout can instead use a local Tesseract installation. Additional OCR languages
-  can be added to its tessdata folder.
+- The shared archive includes a Windows Tesseract OCR runtime. Linux and macOS use a
+  local Tesseract installation available in PATH. Additional OCR languages are
+  managed by that platform's Tesseract installation.
 - The local Git history provides restore points for development changes.

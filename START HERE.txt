@@ -1,58 +1,63 @@
-MARGINALIA — START HERE (WINDOWS)
+MARGINALIA — START HERE
 
-You do not need technical knowledge to use Marginalia.
+Marginalia uses one transparent source package on Windows, Linux and macOS.
 
 BEFORE YOU START
 
-- This version supports Windows 10 and Windows 11 on x64 computers.
 - You need internet access during the first start.
 - Marginalia never edits your original Zotero or Obsidian files.
 - AI is optional. Ordinary keyword search works without Ollama or AI models.
 
 HOW TO START
 
-1. Download Marginalia-Windows-v0.1.0-beta.3.zip from the GitHub Release page.
+1. Download Marginalia-v0.1.0-beta.4.zip from the GitHub Release page.
    Do not download the automatically generated “Source code” archives.
 
-2. Right-click the downloaded ZIP file and choose “Extract All”.
-   Do not run Marginalia from inside the ZIP preview.
+2. Extract the ZIP. Do not run Marginalia from inside the ZIP preview.
 
-3. Open the extracted Marginalia-Windows-v0.1.0-beta.3 folder.
+3. Open the extracted Marginalia-v0.1.0-beta.4 folder. Its top level contains
+   three launchers and one “marginalia” folder with the application files.
 
-4. Double-click “Start Marginalia.cmd”. Keep the command window open while
-   using Marginalia.
+4. Choose the launcher for your computer:
 
-5. If Python 3.12 is already installed, Marginalia uses it. If it is missing,
-   Marginalia asks whether it may install the official Python package using
-   Windows Package Manager. Press Y to agree or N to cancel. Nothing is
-   installed without your confirmation.
+   Windows  — double-click “Start Marginalia.cmd”.
+   Linux    — run “Start Marginalia.sh”. If needed, first allow it to execute.
+   macOS    — double-click “Start Marginalia.command”. If Gatekeeper blocks the
+              first start, Control-click it, choose Open, then confirm Open.
 
-6. On the first start, wait while Marginalia prepares its private environment.
-   The application then opens in your web browser.
+5. Keep the terminal window open while using Marginalia. Closing it stops the app.
 
-7. Choose your Zotero data folder, your Obsidian vault, or both. Choose at
-   least one source and click “Copy and build my library”. Marginalia searches
-   private copies; your originals are not changed.
+6. Marginalia reuses Python 3.12 when available and creates a private .venv in
+   the “marginalia” folder. Windows can offer an official Python installation
+   through winget. macOS can offer Homebrew packages when Homebrew is present.
+   Linux explains the Python 3.12, venv and Tk packages required from your
+   distribution.
+
+7. Wait for Marginalia to open in your web browser. Choose your Zotero data
+   folder, your Obsidian vault, or both, then click “Copy and build my library”.
+
+OCR ON LINUX AND MACOS
+
+Windows includes a local Tesseract runtime. Linux and macOS use Tesseract from
+the system PATH. OCR is needed only for scanned PDFs; ordinary text PDFs work
+without it. On macOS, run “brew install tesseract”. On Linux, install the
+“tesseract-ocr” package supplied by your distribution.
 
 OPTIONAL AI
 
-When Marginalia reaches the AI step, you can choose one of these options:
+- “Skip AI · use BM25” keeps ordinary keyword search with no Ollama requirement.
+- Qwen3 Embedding 0.6B enables semantic search by meaning.
+- Gemma 4 12B additionally enables locally generated answers.
 
-- “Skip AI · use BM25” — recommended if you only want ordinary keyword search.
-- Install Qwen3 Embedding 0.6B — enables semantic search by meaning.
-- Install Gemma 4 12B — additionally enables locally generated answers.
-
-Ollama and AI models are not required. They can also be installed later from
-the “AI models” button inside Marginalia.
+Ollama and models can also be installed later from “AI models” in Marginalia.
 
 IF SOMETHING DOES NOT OPEN
 
-- Keep the black command window open. Closing it stops Marginalia.
-- Look in that window for a line beginning with “Library app:” and open the
+- Look in the terminal for a line beginning with “Library app:” and open the
   displayed http://127.0.0.1 address in your browser.
-- If Windows Package Manager is unavailable, install Python 3.12 manually from
-  https://www.python.org/downloads/windows/ and run Start Marginalia.cmd again.
-- Detailed refresh information is saved locally in refresh.log.
+- Python 3.12 also needs venv and Tk support. On Linux these are commonly
+  separate packages such as python3.12-venv and python3-tk.
+- Detailed refresh information is saved locally in marginalia/refresh.log.
 
 PRIVACY AND LICENSE
 

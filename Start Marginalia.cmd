@@ -1,7 +1,11 @@
 @echo off
 setlocal EnableExtensions EnableDelayedExpansion
 title Marginalia
-cd /d "%~dp0"
+set "MARGINALIA_APP_ROOT=%~dp0marginalia"
+if exist "%MARGINALIA_APP_ROOT%\launcher.py" goto app_root_ready
+set "MARGINALIA_APP_ROOT=%~dp0"
+:app_root_ready
+cd /d "%MARGINALIA_APP_ROOT%"
 
 set "MARGINALIA_VENV=.venv"
 set "MARGINALIA_PYTHON=%MARGINALIA_VENV%\Scripts\python.exe"

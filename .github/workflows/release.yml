@@ -1,4 +1,4 @@
-name: Publish Windows release
+name: Publish universal release
 
 on:
   push:
@@ -9,91 +9,83 @@ on:
       tag:
         description: Existing version tag to publish
         required: true
-        default: v0.1.0-beta.3
+        default: v0.1.0-beta.4
 
 permissions:
   contents: write
 
 jobs:
   release:
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build minimal Windows package
-        shell: pwsh
+      - name: Build one package for Windows, Linux and macOS
+        shell: bash
         run: |
-          $tag = "${{ inputs.tag || github.ref_name }}"
-          $folderName = "Marginalia-Windows-$tag"
-          $stage = Join-Path $env:RUNNER_TEMP $folderName
-          $archive = Join-Path $PWD "$folderName.zip"
-          New-Item -ItemType Directory -Path $stage | Out-Null
-          $runtimeArchive = Join-Path $env:RUNNER_TEMP "Marginalia-Windows-v0.1.0-beta.2.zip"
-          $runtimeRoot = Join-Path $env:RUNNER_TEMP "previous-release"
-          Invoke-WebRequest `
-            -Uri "https://github.com/K-K-Szostak/marginalia-local-search/releases/download/v0.1.0-beta.2/Marginalia-Windows-v0.1.0-beta.2.zip" `
-            -OutFile $runtimeArchive
-          Expand-Archive -LiteralPath $runtimeArchive -DestinationPath $runtimeRoot
-          Copy-Item `
-            -LiteralPath (Join-Path $runtimeRoot "Marginalia-Windows-v0.1.0-beta.2\tools") `
-            -Destination $stage `
-            -Recurse
-          $files = @(
-            "app",
-            "build_semantic_index.py",
-            "build_unified_library.py",
-            "clean_extracted_text.py",
-            "create_empty_library.py",
-            "enrich_metadata.py",
-            "extraction_cache.py",
-            "extract_missing_documents.py",
-            "extract_pdf_corpus.py",
-            "import_obsidian.py",
-            "launcher.py",
-            "library_paths.py",
-            "LICENSE",
-            "ocr_support.py",
-            "prepare_app_search.py",
-            "progress_output.py",
-            "README.md",
-            "README.txt",
-            "refresh_manager.py",
-            "requirements.txt",
-            "semantic_models.py",
-            "source_manager.py",
-            "START HERE.txt",
-            "Start Marginalia.cmd",
-            "THIRD-PARTY-NOTICES.txt"
-          )
-          foreach ($file in $files) {
-            Copy-Item -LiteralPath $file -Destination $stage -Recurse
-          }
-          Compress-Archive -LiteralPath $stage -DestinationPath $archive -CompressionLevel Optimal
-          $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $archive).Hash
-          "$hash  $folderName.zip" | Set-Content -Encoding ascii "$archive.sha256"
+          set -euo pipefail
+          tag="${{ inputs.tag || github.ref_name }}"
+          folder_name="Marginalia-$tag"
+          stage="$RUNNER_TEMP/$folder_name"
+          app_root="$stage/marginalia"
+          archive="$GITHUB_WORKSPACE/$folder_name.zip"
+          mkdir -p "$app_root"
 
-      - name: Create GitHub release
-        shell: pwsh
+          runtime_archive="$RUNNER_TEMP/Marginalia-Windows-v0.1.0-beta.3.zip"
+          runtime_root="$RUNNER_TEMP/previous-release"
+          curl --fail --location --silent --show-error \
+            "https://github.com/K-K-Szostak/marginalia-local-search/releases/download/v0.1.0-beta.3/Marginalia-Windows-v0.1.0-beta.3.zip" \
+            --output "$runtime_archive"
+          unzip -q "$runtime_archive" -d "$runtime_root"
+          cp -R "$runtime_root/Marginalia-Windows-v0.1.0-beta.3/tools" "$app_root/tools"
+
+          files=(
+            app
+            build_semantic_index.py
+            build_unified_library.py
+            clean_extracted_text.py
+            create_empty_library.py
+            enrich_metadata.py
+            extraction_cache.py
+            extract_missing_documents.py
+            extract_pdf_corpus.py
+            import_obsidian.py
+            launcher.py
+            library_paths.py
+            LICENSE
+            ocr_support.py
+            prepare_app_search.py
+            progress_output.py
+            README.md
+            README.txt
+            refresh_manager.py
+            requirements.txt
+            semantic_models.py
+            source_manager.py
+            "START HERE.txt"
+            THIRD-PARTY-NOTICES.txt
+          )
+          cp -R "${files[@]}" "$app_root/"
+          cp "Start Marginalia.cmd" "Start Marginalia.sh" "Start Marginalia.command" "$stage/"
+          chmod +x "$stage/Start Marginalia.sh" "$stage/Start Marginalia.command"
+
+          (cd "$RUNNER_TEMP" && zip -q -r "$archive" "$folder_name")
+          sha256sum "$archive" | sed "s#  .*/#  #" > "$archive.sha256"
+
+      - name: Create or update GitHub release
+        shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $tag = "${{ inputs.tag || github.ref_name }}"
-          $version = $tag.TrimStart("v")
-          $folderName = "Marginalia-Windows-$tag"
-          if (gh release view $tag 2>$null) {
-            gh release delete-asset $tag "Marginalia-Windows-$version.zip" --yes 2>$null
-            gh release delete-asset $tag "Marginalia-Windows-$version.zip.sha256" --yes 2>$null
-            gh release upload $tag "$folderName.zip" "$folderName.zip.sha256" --clobber
-            gh release edit $tag `
-              --draft=false `
-              --prerelease `
-              --title "Marginalia $version" `
-              --notes "Windows beta hotfix. Fixes Start Marginalia.cmd failing when the extracted folder path contains parentheses. Download the ZIP, extract it, and run Start Marginalia.cmd."
-          } else {
-            gh release create $tag `
-              "$folderName.zip" `
-              "$folderName.zip.sha256" `
-              --title "Marginalia $version" `
-              --notes "Windows beta hotfix. Fixes Start Marginalia.cmd failing when the extracted folder path contains parentheses. Download the ZIP, extract it, and run Start Marginalia.cmd." `
-              --prerelease
-          }
+          set -euo pipefail
+          tag="${{ inputs.tag || github.ref_name }}"
+          version="${tag#v}"
+          folder_name="Marginalia-$tag"
+          notes="One transparent source package for Windows, Linux and macOS. The top folder contains only the three platform launchers and the marginalia application folder. Windows includes the bundled OCR runtime; Linux and macOS can use system Tesseract."
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release upload "$tag" "$folder_name.zip" "$folder_name.zip.sha256" --clobber
+            gh release edit "$tag" --draft=false --prerelease --title "Marginalia $version" --notes "$notes"
+          else
+            gh release create "$tag" "$folder_name.zip" "$folder_name.zip.sha256" \
+              --title "Marginalia $version" --notes "$notes" --prerelease
+          fi
