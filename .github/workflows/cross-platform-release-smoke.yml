@@ -1,0 +1,58 @@
+name: Test published package
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Published release tag to test
+        required: true
+        default: v0.1.0-beta.5
+
+permissions:
+  contents: read
+
+jobs:
+  launch-published-zip:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Download and extract the public package on Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $tag = "${{ inputs.tag }}"
+          $zip = Join-Path $env:RUNNER_TEMP "Marginalia-$tag.zip"
+          $url = "https://github.com/K-K-Szostak/marginalia-local-search/releases/download/$tag/Marginalia-$tag.zip"
+          Invoke-WebRequest -UseBasicParsing -Uri $url -OutFile $zip
+          $extract = Join-Path $env:RUNNER_TEMP "Marginalia package (published)"
+          Expand-Archive -LiteralPath $zip -DestinationPath $extract
+          "MARGINALIA_PACKAGE_ROOT=$extract/Marginalia-$tag" >> $env:GITHUB_ENV
+      - name: Download and extract the public package on Linux or macOS
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          tag="${{ inputs.tag }}"
+          zip="$RUNNER_TEMP/Marginalia-$tag.zip"
+          url="https://github.com/K-K-Szostak/marginalia-local-search/releases/download/$tag/Marginalia-$tag.zip"
+          curl --fail --location --silent --show-error "$url" --output "$zip"
+          extract="$RUNNER_TEMP/Marginalia package (published)"
+          unzip -q "$zip" -d "$extract"
+          echo "MARGINALIA_PACKAGE_ROOT=$extract/Marginalia-$tag" >> "$GITHUB_ENV"
+      - name: Start the published Windows package and query its API
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $env:MARGINALIA_SMOKE_TEST = "1"
+          & "$env:MARGINALIA_PACKAGE_ROOT\Start Marginalia.cmd"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Start the published Linux package and query its API
+        if: runner.os == 'Linux'
+        shell: bash
+        run: MARGINALIA_SMOKE_TEST=1 "$MARGINALIA_PACKAGE_ROOT/Start Marginalia.sh"
+      - name: Start the published macOS package and query its API
+        if: runner.os == 'macOS'
+        shell: bash
+        run: MARGINALIA_SMOKE_TEST=1 "$MARGINALIA_PACKAGE_ROOT/Start Marginalia.command"

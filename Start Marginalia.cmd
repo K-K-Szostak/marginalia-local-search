@@ -121,6 +121,10 @@ if errorlevel 1 (
 )
 
 if /i "%MARGINALIA_SETUP_ONLY%"=="1" exit /b 0
+if /i "%MARGINALIA_SMOKE_TEST%"=="1" (
+  "%MARGINALIA_PYTHON%" launcher.py --smoke-test
+  exit /b !errorlevel!
+)
 echo Starting Marginalia from auditable source files...
 echo Keep this window open while using the application.
 echo Press Ctrl+C here to stop Marginalia.

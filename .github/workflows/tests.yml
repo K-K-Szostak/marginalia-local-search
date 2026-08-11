@@ -25,3 +25,18 @@ jobs:
           --only-binary=:all: -r requirements.txt
       - run: python -m unittest discover -s tests -q
       - run: node --check app/app.js
+      - name: Smoke-test the Windows launcher and running app
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $env:MARGINALIA_SMOKE_TEST = "1"
+          & ".\Start Marginalia.cmd"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Smoke-test the Linux launcher and running app
+        if: runner.os == 'Linux'
+        shell: bash
+        run: MARGINALIA_SMOKE_TEST=1 ./Start\ Marginalia.sh
+      - name: Smoke-test the macOS launcher and running app
+        if: runner.os == 'macOS'
+        shell: bash
+        run: MARGINALIA_SMOKE_TEST=1 ./Start\ Marginalia.command

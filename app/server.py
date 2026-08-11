@@ -1969,6 +1969,18 @@ if __name__ == "__main__":
     active_port=server.server_port
     app_url=f"http://{HOST}:{active_port}"
     print(f"Library app: {app_url}")
+    if "--smoke-test" in sys.argv:
+        worker=threading.Thread(target=server.serve_forever,daemon=True,name="marginalia-smoke-server")
+        worker.start()
+        try:
+            with urllib.request.urlopen(app_url+"/api/app-instance",timeout=10) as response:
+                payload=json.loads(response.read().decode("utf-8"))
+            if response.status!=200 or payload.get("app")!="marginalia-local" or payload.get("install_id")!=INSTALL_ID:
+                raise RuntimeError("Marginalia smoke test received an invalid application response")
+            print("Marginalia smoke test passed.")
+        finally:
+            server.shutdown(); server.server_close(); worker.join(timeout=10)
+        raise SystemExit(0)
     if refresh_resume_required() and sources_configured():
         print("Resuming the refresh interrupted during the previous session.")
         start_refresh()

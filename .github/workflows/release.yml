@@ -9,7 +9,7 @@ on:
       tag:
         description: Existing version tag to publish
         required: true
-        default: v0.1.0-beta.4
+        default: v0.1.0-beta.5
 
 permissions:
   contents: write
@@ -89,3 +89,9 @@ jobs:
             gh release create "$tag" "$folder_name.zip" "$folder_name.zip.sha256" \
               --title "Marginalia $version" --notes "$notes" --prerelease
           fi
+
+      - name: Verify the published ZIP on all supported systems
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run cross-platform-release-smoke.yml --ref main -f tag="${{ inputs.tag || github.ref_name }}"

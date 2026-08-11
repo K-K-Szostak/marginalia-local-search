@@ -88,6 +88,11 @@ if [ "${MARGINALIA_SETUP_ONLY:-0}" = "1" ]; then
   exit 0
 fi
 
+if [ "${MARGINALIA_SMOKE_TEST:-0}" = "1" ]; then
+  "$PYTHON" launcher.py --smoke-test
+  exit $?
+fi
+
 printf 'Starting Marginalia from auditable source files...\n'
 printf 'Keep this window open while using the application.\n'
 printf 'Press Ctrl+C here to stop Marginalia.\n\n'
