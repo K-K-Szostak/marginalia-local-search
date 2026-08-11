@@ -11,6 +11,8 @@ import time
 import urllib.request
 from pathlib import Path
 
+from local_network import loopback_url
+
 import numpy as np
 from progress_output import progress as live_progress
 from semantic_models import index_path as semantic_model_index_path, progress_path as semantic_model_progress_path, register_model as register_embedding_model
@@ -22,7 +24,7 @@ CLEAN_DB = BASE / "clean_text.sqlite"
 INDEX_DB = BASE / "semantic_index.sqlite"
 OBSIDIAN_DB = BASE / "obsidian_notes.sqlite"
 PROGRESS = BASE / "semantic_index_progress.json"
-OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://127.0.0.1:11434").rstrip("/")
+OLLAMA_BASE_URL = loopback_url("OLLAMA_BASE_URL", "http://127.0.0.1:11434")
 EMBED_MODEL = os.getenv("EMBED_MODEL", "qwen3-embedding:0.6b")
 EMBED_DIMENSIONS = 0
 MODEL_IDENTITY = ""

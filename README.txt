@@ -2,7 +2,7 @@ MARGINALIA — PRIVATE LOCAL RESEARCH LIBRARY
 
 VERSION AND PLATFORM
 
-This is Marginalia v0.1.0-beta.5. One transparent source package supports
+This is Marginalia v0.1.0-beta.6. One transparent source package supports
 Windows 10/11, Linux and macOS. Platform launchers share the same application
 code stored in the marginalia subfolder.
 

@@ -2,12 +2,15 @@ from __future__ import annotations
 
 import json
 import html
+import hmac
 import hashlib
 import heapq
+import ipaddress
 import mimetypes
 import os
 import posixpath
 import re
+import secrets
 import shutil
 import subprocess
 import socket
@@ -27,6 +30,7 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from ocr_support import find_tesseract
+from local_network import loopback_host, loopback_url
 from refresh_manager import active_generation_matches, recover_interrupted_publication, release_bulk_embedding_ollama, report_recovery_failure, resume_required as refresh_resume_required, select_semantic_setup_model, skip_semantic_setup, start as start_refresh, start_semantic, state as refresh_state
 from semantic_models import DEFAULT_MODEL as DEFAULT_EMBED_MODEL, active_model as persisted_active_embedding_model, index_path as semantic_model_index_path, indexed_models as registered_embedding_models, progress_path as semantic_model_progress_path, register_model as register_embedding_model, set_active_model as persist_active_embedding_model, setup_path as semantic_model_setup_path, unregister_model as unregister_embedding_model, valid_model_name
 from source_manager import choose_folder_via_helper, configured as sources_configured, load_config, save_config
@@ -40,12 +44,12 @@ HISTORY_DB = BASE / "search_history.sqlite"
 HISTORY_MAX_ENTRIES = 100
 HISTORY_RETENTION_DAYS = 180
 GENERATION_MANIFEST = BASE / "library_generation.json"
-HOST = os.getenv("MARGINALIA_HOST", "127.0.0.1")
+HOST = loopback_host("MARGINALIA_HOST")
 INSTALL_ID = hashlib.sha256(str(BASE).casefold().encode("utf-8")).hexdigest()[:16]
 DEFAULT_PORT = 20000 + (int(INSTALL_ID[:8], 16) % 20000)
 PORT = int(os.getenv("MARGINALIA_PORT", str(DEFAULT_PORT)))
-OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://127.0.0.1:11434").rstrip("/")
-EMBED_OLLAMA_BASE_URL = os.getenv("EMBED_OLLAMA_BASE_URL", "http://127.0.0.1:11435").rstrip("/")
+OLLAMA_BASE_URL = loopback_url("OLLAMA_BASE_URL", "http://127.0.0.1:11434")
+EMBED_OLLAMA_BASE_URL = loopback_url("EMBED_OLLAMA_BASE_URL", "http://127.0.0.1:11435")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", os.getenv("LLM_MODEL", "gemma4:12b"))
 EMBED_MODEL = os.getenv("EMBED_MODEL", persisted_active_embedding_model()).strip()
 EMBED_MODELS = {model: semantic_model_index_path(model) for model in registered_embedding_models()}
@@ -69,6 +73,8 @@ MODEL_INSTALL = {"running":False,"model":"","status":"idle","completed":0,"total
   "started_during_ai_setup":False,"index_started":False}
 RECOMMENDED_ANSWER_MODEL = "gemma4:12b"
 AI_PREFS_PATH = BASE / "ai_preferences.json"
+SESSION_TOKEN_PATH = BASE / ".marginalia-session-token"
+SESSION_TOKEN = ""
 
 
 def ai_preferences():
@@ -399,16 +405,41 @@ class SingleInstanceServer(ThreadingHTTPServer):
     allow_reuse_address=False
 
 
-def matching_instance(port):
+def matching_instance(port, token):
     """Return True only when this exact installation already owns the port."""
     try:
-        with urllib.request.urlopen(
-            f"http://{HOST}:{port}/api/app-instance", timeout=.75
-        ) as response:
+        request=urllib.request.Request(
+            f"http://{HOST}:{port}/api/app-instance",
+            headers={"X-Marginalia-Token":token},
+        )
+        with urllib.request.urlopen(request, timeout=.75) as response:
             payload=json.loads(response.read())
         return payload.get("install_id")==INSTALL_ID
     except Exception:
         return False
+
+
+def read_session_token():
+    try:
+        return SESSION_TOKEN_PATH.read_text(encoding="ascii").strip()
+    except OSError:
+        return ""
+
+
+def write_session_token(token):
+    temporary=SESSION_TOKEN_PATH.with_suffix(".tmp")
+    temporary.write_text(token,encoding="ascii")
+    try: os.chmod(temporary,0o600)
+    except OSError: pass
+    os.replace(temporary,SESSION_TOKEN_PATH)
+
+
+def remove_session_token(token):
+    try:
+        if read_session_token()==token:
+            SESSION_TOKEN_PATH.unlink(missing_ok=True)
+    except OSError:
+        pass
 
 
 def connect():
@@ -1430,6 +1461,56 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self, *_):
         pass
 
+    def end_headers(self):
+        self.send_header("Content-Security-Policy", "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'")
+        self.send_header("X-Frame-Options", "DENY")
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("Referrer-Policy", "no-referrer")
+        self.send_header("Cross-Origin-Resource-Policy", "same-origin")
+        super().end_headers()
+
+    def _valid_local_authority(self, value, *, origin=False):
+        if not value:
+            return False
+        try:
+            parsed=urllib.parse.urlsplit(value if origin else "//"+value)
+            if origin and parsed.scheme != "http": return False
+            if parsed.username is not None or parsed.password is not None or parsed.query or parsed.fragment: return False
+            if origin and parsed.path not in {"", "/"}: return False
+            hostname=(parsed.hostname or "").casefold()
+            if hostname != "localhost":
+                try:
+                    if not ipaddress.ip_address(hostname).is_loopback: return False
+                except ValueError:
+                    return False
+            return parsed.port == self.server.server_port
+        except ValueError:
+            return False
+
+    def _session_cookie(self):
+        name=f"marginalia_session_{self.server.server_port}="
+        for part in self.headers.get("Cookie","").split(";"):
+            part=part.strip()
+            if part.startswith(name): return urllib.parse.unquote(part[len(name):])
+        return ""
+
+    def authorize(self, api=False):
+        if not self._valid_local_authority(self.headers.get("Host")):
+            self.send_json({"error":"Invalid local request host"},421); return False
+        origin=self.headers.get("Origin")
+        if origin and not self._valid_local_authority(origin,origin=True):
+            self.send_json({"error":"Cross-origin requests are not allowed"},403); return False
+        if self.headers.get("Sec-Fetch-Site","").casefold()=="cross-site":
+            self.send_json({"error":"Cross-site requests are not allowed"},403); return False
+        if api:
+            supplied=self.headers.get("X-Marginalia-Token","") or self._session_cookie()
+            if not SESSION_TOKEN or not hmac.compare_digest(supplied,SESSION_TOKEN):
+                self.send_json({"error":"This browser session is not authorized"},403); return False
+        return True
+
+    def do_OPTIONS(self):
+        self.send_json({"error":"Cross-origin requests are not allowed"},403)
+
     def send_json(self, value, status=200):
         body = json.dumps(value,ensure_ascii=False).encode("utf-8")
         self.send_response(status)
@@ -1447,6 +1528,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         url = urllib.parse.urlparse(self.path)
+        if not self.authorize(api=url.path.startswith("/api/")): return
         params = urllib.parse.parse_qs(url.query)
         if url.path == "/api/app-instance":
             return self.send_json({"app":"marginalia-local","install_id":INSTALL_ID})
@@ -1728,8 +1810,11 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Length",str(len(body))); self.end_headers(); self.wfile.write(body)
 
     def do_POST(self):
+        if not self.authorize(api=True): return
         allowed={"/api/ask","/api/ask/retrieve","/api/ask/compose","/api/history","/api/setup/configure","/api/refresh/start","/api/ai/install-embedding","/api/ai/install-answer","/api/ai/build-index","/api/ai/select-embedding","/api/ai/skip"}
         if self.path not in allowed: return self.send_error(404)
+        if not self.headers.get("Content-Type","").casefold().startswith("application/json"):
+            return self.send_json({"error":"Content-Type must be application/json"},415)
         try:
             body=json.loads(self.rfile.read(int(self.headers.get("Content-Length","0"))))
         except Exception: return self.send_json({"error":"Invalid request"},400)
@@ -1928,6 +2013,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_DELETE(self):
         url=urllib.parse.urlparse(self.path)
+        if not self.authorize(api=True): return
         if url.path == "/api/ai/model":
             model=urllib.parse.parse_qs(url.query).get("model",[""])[0]
             if not valid_model_name(model): return self.send_json({"error":"Invalid Ollama model name"},400)
@@ -1950,6 +2036,7 @@ class Handler(BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
+    SESSION_TOKEN=read_session_token()
     try:
         recover_interrupted_publication()
     except Exception as exc:
@@ -1959,13 +2046,15 @@ if __name__ == "__main__":
     try:
         server=SingleInstanceServer((HOST,PORT),Handler)
     except OSError:
-        if matching_instance(PORT):
+        if SESSION_TOKEN and matching_instance(PORT,SESSION_TOKEN):
             print("This Marginalia installation is already running. Opening it.")
-            if "--open" in sys.argv: webbrowser.open(f"http://{HOST}:{PORT}")
+            if "--open" in sys.argv: webbrowser.open(f"http://{HOST}:{PORT}/#token={urllib.parse.quote(SESSION_TOKEN)}")
             raise SystemExit(0)
         # An unrelated local service owns the preferred port. Use a free one;
         # never open another Marginalia installation or the development app.
         server=SingleInstanceServer((HOST,0),Handler)
+    SESSION_TOKEN=secrets.token_urlsafe(32)
+    write_session_token(SESSION_TOKEN)
     active_port=server.server_port
     app_url=f"http://{HOST}:{active_port}"
     print(f"Library app: {app_url}")
@@ -1973,19 +2062,21 @@ if __name__ == "__main__":
         worker=threading.Thread(target=server.serve_forever,daemon=True,name="marginalia-smoke-server")
         worker.start()
         try:
-            with urllib.request.urlopen(app_url+"/api/app-instance",timeout=10) as response:
+            request=urllib.request.Request(app_url+"/api/app-instance",headers={"X-Marginalia-Token":SESSION_TOKEN})
+            with urllib.request.urlopen(request,timeout=10) as response:
                 payload=json.loads(response.read().decode("utf-8"))
             if response.status!=200 or payload.get("app")!="marginalia-local" or payload.get("install_id")!=INSTALL_ID:
                 raise RuntimeError("Marginalia smoke test received an invalid application response")
             print("Marginalia smoke test passed.")
         finally:
-            server.shutdown(); server.server_close(); worker.join(timeout=10)
+            server.shutdown(); server.server_close(); worker.join(timeout=10); remove_session_token(SESSION_TOKEN)
         raise SystemExit(0)
     if refresh_resume_required() and sources_configured():
         print("Resuming the refresh interrupted during the previous session.")
         start_refresh()
     if "--open" in sys.argv:
-        threading.Timer(.7,lambda:webbrowser.open(app_url)).start()
+        launch_url=app_url+"/#token="+urllib.parse.quote(SESSION_TOKEN)
+        threading.Timer(.7,lambda:webbrowser.open(launch_url)).start()
     preferences=ai_preferences()
     if preferences.get("answer_enabled"):
         threading.Thread(target=ensure_answer_ollama,daemon=True,name="answer-ollama-autostart").start()
@@ -1994,6 +2085,7 @@ if __name__ == "__main__":
     try:
         server.serve_forever()
     finally:
+        remove_session_token(SESSION_TOKEN)
         release_bulk_embedding_ollama()
         release_answer_ollama()
         if EMBED_OLLAMA_PROCESS is not None and EMBED_OLLAMA_PROCESS.poll() is None:

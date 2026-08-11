@@ -228,36 +228,36 @@ class SemanticRuntimeTests(unittest.TestCase):
 
     def test_bulk_build_service_is_separate_from_answer_and_query_services(self):
         with patch.dict(os.environ, {
-            "OLLAMA_BASE_URL": "http://answer:11434",
-            "EMBED_OLLAMA_BASE_URL": "http://query:11435",
-            "EMBED_BUILD_OLLAMA_BASE_URL": "http://bulk:11436",
+            "OLLAMA_BASE_URL": "http://127.0.0.1:11434",
+            "EMBED_OLLAMA_BASE_URL": "http://127.0.0.1:11435",
+            "EMBED_BUILD_OLLAMA_BASE_URL": "http://127.0.0.1:11436",
         }, clear=False):
             candidates = refresh_manager.semantic_service_candidates()
         self.assertEqual(candidates, [
-            ("gpu-preferred", "http://bulk:11436"),
-            ("cpu-fallback", "http://query:11435"),
+            ("gpu-preferred", "http://127.0.0.1:11436"),
+            ("cpu-fallback", "http://127.0.0.1:11435"),
         ])
 
     def test_bulk_build_prefers_gpu_service_and_falls_back_to_query_cpu(self):
         model = "qwen3-embedding:0.6b"
         with patch.dict(os.environ, {
-            "EMBED_BUILD_OLLAMA_BASE_URL": "http://bulk:11436",
-            "EMBED_OLLAMA_BASE_URL": "http://query:11435",
+            "EMBED_BUILD_OLLAMA_BASE_URL": "http://127.0.0.1:11436",
+            "EMBED_OLLAMA_BASE_URL": "http://127.0.0.1:11435",
         }, clear=False), patch.object(refresh_manager, "_ollama_models", return_value={model}):
             self.assertEqual(refresh_manager.choose_semantic_service(model)["role"], "gpu-preferred")
 
         def models(base_url, timeout=3):
-            if base_url == "http://bulk:11436":
+            if base_url == "http://127.0.0.1:11436":
                 raise ConnectionError("offline")
             return {model}
 
         with patch.dict(os.environ, {
-            "EMBED_BUILD_OLLAMA_BASE_URL": "http://bulk:11436",
-            "EMBED_OLLAMA_BASE_URL": "http://query:11435",
+            "EMBED_BUILD_OLLAMA_BASE_URL": "http://127.0.0.1:11436",
+            "EMBED_OLLAMA_BASE_URL": "http://127.0.0.1:11435",
         }, clear=False), patch.object(refresh_manager, "_ollama_models", side_effect=models):
             selected = refresh_manager.choose_semantic_service(model)
         self.assertEqual(selected["role"], "cpu-fallback")
-        self.assertEqual(selected["base_url"], "http://query:11435")
+        self.assertEqual(selected["base_url"], "http://127.0.0.1:11435")
 
     def test_runtime_uses_ollama_vram_report_not_service_assumption(self):
         gpu = io.BytesIO(json.dumps({"models": [{

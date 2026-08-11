@@ -9,7 +9,7 @@ on:
       tag:
         description: Existing version tag to publish
         required: true
-        default: v0.1.0-beta.5
+        default: v0.1.0-beta.6
 
 permissions:
   contents: write
@@ -33,11 +33,15 @@ jobs:
 
           runtime_archive="$RUNNER_TEMP/Marginalia-Windows-v0.1.0-beta.3.zip"
           runtime_root="$RUNNER_TEMP/previous-release"
+          runtime_sha256="8d6f44f792aaf9cf8dc8c7170743b8c50e360422acf3a3ea8e81220f0a575d1d"
           curl --fail --location --silent --show-error \
             "https://github.com/K-K-Szostak/marginalia-local-search/releases/download/v0.1.0-beta.3/Marginalia-Windows-v0.1.0-beta.3.zip" \
             --output "$runtime_archive"
+          echo "$runtime_sha256  $runtime_archive" | sha256sum --check --strict
           unzip -q "$runtime_archive" -d "$runtime_root"
           cp -R "$runtime_root/Marginalia-Windows-v0.1.0-beta.3/tools" "$app_root/tools"
+          echo "babb405f4366b480d02cd8ff2bac8d497170f6c1711ce6f3d5d8bf0fb7fa6ed9  $app_root/tools/tesseract/tesseract.exe" | sha256sum --check --strict
+          echo "279488c41bd341edaa03dcd097faa33604ba330e6254ac97bcaf2229d8d7ac1a  $app_root/tools/tesseract/libtesseract-5.dll" | sha256sum --check --strict
 
           files=(
             app
@@ -52,7 +56,9 @@ jobs:
             import_obsidian.py
             launcher.py
             library_paths.py
+            local_network.py
             LICENSE
+            OCR-RUNTIME-PROVENANCE.txt
             ocr_support.py
             prepare_app_search.py
             progress_output.py

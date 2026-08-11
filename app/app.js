@@ -1,3 +1,21 @@
+const launchToken=new URLSearchParams(location.hash.slice(1)).get('token');
+if(launchToken){
+  sessionStorage.setItem('marginalia-session-token',launchToken);
+  document.cookie=`marginalia_session_${location.port}=${encodeURIComponent(launchToken)}; SameSite=Strict; Path=/`;
+  history.replaceState(null,'',location.pathname+location.search);
+}
+const sessionToken=sessionStorage.getItem('marginalia-session-token')||'';
+const nativeFetch=window.fetch.bind(window);
+window.fetch=(input,init={})=>{
+  const target=new URL(input instanceof Request?input.url:String(input),location.href);
+  if(target.origin!==location.origin||!sessionToken)return nativeFetch(input,init);
+  const headers=new Headers(input instanceof Request?input.headers:undefined);
+  new Headers(init.headers||{}).forEach((value,key)=>headers.set(key,value));
+  headers.set('X-Marginalia-Token',sessionToken);
+  return input instanceof Request
+    ? nativeFetch(new Request(input,{...init,headers}))
+    : nativeFetch(input,{...init,headers});
+};
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 let scope='all', retrievalMethod=localStorage.getItem('marginalia-retrieval-method')||'hybrid', progressTimer=null, answerProgressTimer=null, progressStartedAt=0, answerProgressStartedAt=0, progressValue=0, answerProgressValue=0, activeRequest=null, progressPhase='idle';
 if(!['bm25','semantic','hybrid'].includes(retrievalMethod))retrievalMethod='hybrid';

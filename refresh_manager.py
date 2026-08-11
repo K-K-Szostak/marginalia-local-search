@@ -13,6 +13,8 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
+from local_network import loopback_url
+
 from source_manager import (
     ROOT, cleanup_snapshot_generations, discard_snapshot_generation, load_config,
     publish_source_pointers, reserve_snapshot_generation, snapshot_sources,
@@ -350,8 +352,8 @@ def snapshot_generation_is_active(snapshot: dict | None) -> bool:
 
 
 def semantic_service_candidates() -> list[tuple[str, str]]:
-    preferred = os.getenv("EMBED_BUILD_OLLAMA_BASE_URL", "http://127.0.0.1:11436").rstrip("/")
-    fallback = os.getenv("EMBED_OLLAMA_BASE_URL", "http://127.0.0.1:11435").rstrip("/")
+    preferred = loopback_url("EMBED_BUILD_OLLAMA_BASE_URL", "http://127.0.0.1:11436")
+    fallback = loopback_url("EMBED_OLLAMA_BASE_URL", "http://127.0.0.1:11435")
     values = [("gpu-preferred", preferred), ("cpu-fallback", fallback)]
     return [(role, url) for index, (role, url) in enumerate(values) if url and url not in {item[1] for item in values[:index]}]
 
@@ -457,7 +459,7 @@ def semantic_preflight(model: str | None = None) -> str:
         return ""
     # The temporary GPU service shares Ollama's local model store with the main
     # answer service, but is not started until stage 8 actually begins.
-    main_base_url = os.getenv("OLLAMA_BASE_URL", "http://127.0.0.1:11434").rstrip("/")
+    main_base_url = loopback_url("OLLAMA_BASE_URL", "http://127.0.0.1:11434")
     try:
         if model in _ollama_models(main_base_url):
             return ""

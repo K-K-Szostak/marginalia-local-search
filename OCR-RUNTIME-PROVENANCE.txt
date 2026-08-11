@@ -1,0 +1,23 @@
+Marginalia Windows OCR runtime provenance
+=========================================
+
+The Windows release contains a Tesseract OCR runtime first packaged in the
+Marginalia v0.1.0-beta.3 release. Release builds download that immutable asset
+and refuse to continue unless its complete SHA-256 digest matches:
+
+Source:
+https://github.com/K-K-Szostak/marginalia-local-search/releases/download/v0.1.0-beta.3/Marginalia-Windows-v0.1.0-beta.3.zip
+
+Archive SHA-256:
+8d6f44f792aaf9cf8dc8c7170743b8c50e360422acf3a3ea8e81220f0a575d1d
+
+Additional extracted-file checks:
+tesseract/tesseract.exe
+babb405f4366b480d02cd8ff2bac8d497170f6c1711ce6f3d5d8bf0fb7fa6ed9
+
+tesseract/libtesseract-5.dll
+279488c41bd341edaa03dcd097faa33604ba330e6254ac97bcaf2229d8d7ac1a
+
+These checks prevent a changed or substituted download from entering a new
+Marginalia release unnoticed. Linux and macOS releases use a system-installed
+Tesseract executable instead of this Windows runtime.
