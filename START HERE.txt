@@ -2,6 +2,13 @@ MARGINALIA — START HERE
 
 Marginalia uses one transparent source package on Windows, Linux and macOS.
 
+IMPORTANT NOTICE
+
+Marginalia was vibe-coded: it was developed through iterative collaboration
+with AI coding tools, under human direction and testing. It is experimental beta
+software, provided as-is and without warranty. It may contain defects. Keep
+backups of important data and use Marginalia at your own risk.
+
 BEFORE YOU START
 
 - You need internet access during the first start.
@@ -62,5 +69,6 @@ IF SOMETHING DOES NOT OPEN
 PRIVACY AND LICENSE
 
 Library processing happens locally. Optional AI uses local Ollama models.
-Marginalia is free software under GNU AGPL v3 and is provided without warranty.
+Marginalia is free software under GNU AGPL v3. It is provided as-is and without
+warranty; use it at your own risk.
 Source code: https://github.com/K-K-Szostak/marginalia-local-search

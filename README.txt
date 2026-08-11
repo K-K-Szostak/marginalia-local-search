@@ -6,6 +6,13 @@ This is Marginalia v0.1.0-beta.7. One transparent source package supports
 Windows 10/11, Linux and macOS. Platform launchers share the same application
 code stored in the marginalia subfolder.
 
+IMPORTANT NOTICE
+
+Marginalia was vibe-coded: it was developed through iterative collaboration
+with AI coding tools, under human direction and testing. It is experimental beta
+software, provided as-is and without warranty. It may contain defects. Keep
+backups of important data and use Marginalia at your own risk.
+
 QUICK START
 
 1. Use Start Marginalia.cmd on Windows, Start Marginalia.sh on Linux, or
@@ -84,7 +91,8 @@ Copyright (C) 2026 Marginalia contributors.
 
 Marginalia is free software licensed under the GNU Affero General Public License,
 version 3 only (SPDX: AGPL-3.0-only). You may use, study, share and modify it under
-the terms in LICENSE. Marginalia is provided without warranty. The preferred source
+the terms in LICENSE. Marginalia is provided as-is, without warranty, and is used
+at your own risk. The preferred source
 for modification is https://github.com/K-K-Szostak/marginalia-local-search.
 Third-party components retain their own licenses; see THIRD-PARTY-NOTICES.txt.
 

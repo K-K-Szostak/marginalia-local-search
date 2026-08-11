@@ -3,6 +3,12 @@
 Marginalia is a private local search application for Zotero and Obsidian. It
 creates searchable working copies and never edits the original libraries.
 
+> **Development and risk disclosure:** Marginalia was vibe-coded: it was
+> developed through iterative collaboration with AI coding tools, under human
+> direction and testing. It is experimental beta software, provided as-is and
+> without warranty. It may contain defects. Review the source, keep backups of
+> important data, and use it at your own risk.
+
 > **Shared beta package:** Windows 10/11, Linux and macOS use the same auditable source code and one download.
 
 ## Download and start
