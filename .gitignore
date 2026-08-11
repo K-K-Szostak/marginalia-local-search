@@ -1,0 +1,63 @@
+# Python caches and local environments
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Frozen application and packaging output
+*.exe
+_internal/
+_internal_previous/
+build/
+dist/
+.build_*/
+.packaging_deps/
+*.spec
+
+# Bundled third-party executables
+tools/
+vendor/
+
+# Private source configuration and working copies
+app_config.json
+zotero_source.json
+obsidian_source.json
+refresh_state.json
+library_generation.json
+generation_publish.json
+generation_publish.damaged-*.json
+source_snapshots/
+files/
+.folder-picker-*.json
+
+# Generated databases, indexes, caches, and model downloads
+*.sqlite
+*.sqlite-*
+*.db
+*.db-*
+*.download
+attachment_hash_cache.json
+embedding_models.json
+active_embedding_model.json
+ai_preferences.json
+.embedding_models.lock
+zotero_sync_state.json
+*_report.json
+*_progress.json
+*_setup.json
+
+# Runtime and build logs
+*.log
+*.tmp
+*.new
+
+# Editor and operating-system files
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Local release staging
+/Marginalia - do wyslania/
+/GitHub - Marginalia/
+/Marginalia-Windows-*.zip

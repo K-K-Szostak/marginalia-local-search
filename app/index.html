@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Marginalia — your research library</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <aside class="rail">
+    <div class="brand"><span class="brandmark">M</span><span>Marginalia</span></div>
+    <nav>
+      <button class="nav active" data-scope="all"><span>⌕</span> Search everything</button>
+      <button class="nav" data-scope="annotations"><span>✎</span> My annotations</button>
+      <button class="nav" data-scope="documents"><span>▤</span> Document text</button>
+      <button class="nav" data-scope="metadata"><span>◫</span> Titles & metadata</button>
+      <button class="nav" data-scope="notes"><span>≡</span> Zotero Notes</button>
+      <button class="nav" data-scope="obsidian"><span>◇</span> Obsidian Notes</button>
+    </nav>
+    <div class="rail-actions"><button id="refresh-library" class="refresh-library"><span>↻</span> Refresh library</button><button id="ai-models">AI models</button><button id="library-settings" class="library-settings">Source folders</button></div>
+    <div class="rail-foot"><div class="rail-status"><div class="status-dot"></div><div><strong>Local library</strong><small>Searches private copies, never originals</small></div></div><div class="legal-notice">© 2026 Marginalia contributors<br><a href="/LICENSE" target="_blank" rel="license">AGPL v3</a> · <a href="https://github.com/K-K-Szostak/marginalia-local-search" target="_blank" rel="external">source code</a> · no warranty</div></div>
+  </aside>
+  <main>
+    <header><div><span class="eyebrow">PERSONAL RESEARCH INDEX</span><h1>Search what you’ve read.<br><em>Find what you meant.</em></h1></div><div class="stats" id="stats"></div></header>
+    <section class="search-panel">
+      <div class="retrieval-controls">
+        <div class="retrieval-method" role="group" aria-label="Search method">
+          <span class="control-label">Search method</span>
+          <button type="button" data-retrieval="bm25">BM25 <small>words</small></button>
+          <button type="button" data-retrieval="semantic">Embeddings <small>meaning</small></button>
+          <button type="button" class="active" data-retrieval="hybrid">Hybrid <small>recommended</small></button>
+        </div>
+        <label class="embedding-option"><span>Embedding model</span><select id="embedding-model"><option value="qwen3-embedding:0.6b">Qwen3 0.6B · faster</option><option value="qwen3-embedding:8b">Qwen3 8B · more precise</option><option value="__add_model__">＋ Add another model…</option></select></label>
+        <label class="gemma-option"><input type="checkbox" id="generate-answer" checked><span>Generate model answer</span></label>
+        <label class="answer-model-option"><span>Answer model</span><select id="answer-model" aria-label="Answer model"><option value="gemma4:12b">gemma4:12b</option></select></label>
+        <label class="answer-mode-option"><span>Answer depth</span><select id="answer-mode"><option value="fast">Fast · strongest sources</option><option value="full">Full · all results</option></select></label>
+        <div id="llm-status" class="llm-status" title="Local Ollama status"><i></i><b>Checking local model…</b><button type="button" id="install-embedding" class="install-ai hidden">Install model</button></div>
+      </div>
+      <form id="search-form"><span class="glass">⌕</span><textarea id="query" rows="1" placeholder="Search a phrase, author, argument, or idea…" autofocus></textarea><button class="submit" aria-label="Search">→</button></form>
+      <div class="scope-row"><span>Searching</span><strong id="scope-label">everything</strong><label class="exact-option" id="exact-option"><input type="checkbox" id="exact-match"><span>Exact phrase (BM25)</span></label><button type="button" class="advanced-toggle" id="advanced-toggle" aria-expanded="false">Advanced search <span id="advanced-count"></span></button></div>
+      <div class="advanced-panel hidden" id="advanced-panel">
+        <div class="source-folder-filter"><span>Zotero folders</span><button type="button" class="folder-summary" id="zotero-folder-summary">All folders</button><div class="folder-menu hidden" id="zotero-folder-menu"><div class="folder-menu-actions"><button type="button" data-folder-action="all" data-source="zotero">Select all</button><button type="button" data-folder-action="none" data-source="zotero">Clear all</button></div><div class="folder-options" id="zotero-folder-options"></div></div></div>
+        <div class="source-folder-filter"><span>Obsidian folders</span><button type="button" class="folder-summary" id="obsidian-folder-summary">All folders</button><div class="folder-menu hidden" id="obsidian-folder-menu"><div class="folder-menu-actions"><button type="button" data-folder-action="all" data-source="obsidian">Select all</button><button type="button" data-folder-action="none" data-source="obsidian">Clear all</button></div><div class="folder-options" id="obsidian-folder-options"></div></div></div>
+        <fieldset><legend>Publication date</legend><label><span>From</span><input type="date" id="published-from"></label><label><span>To</span><input type="date" id="published-to"></label></fieldset>
+        <fieldset><legend>Date added to Zotero</legend><label><span>From</span><input type="date" id="added-from"></label><label><span>To</span><input type="date" id="added-to"></label></fieldset>
+        <button type="button" id="clear-filters" class="clear-filters">Clear filters</button>
+      </div>
+      <div class="search-progress hidden" id="search-progress" role="status" aria-live="polite">
+        <div class="progress-stage retrieval-progress" id="retrieval-progress">
+          <div class="progress-copy"><span id="progress-label">Searching...</span><span id="progress-time">0.0s</span></div>
+          <div class="progress-track"><div class="progress-bar" id="progress-bar"></div></div>
+        </div>
+        <div class="progress-stage answer-progress hidden" id="answer-progress">
+          <div class="progress-copy"><span id="answer-progress-label">Preparing answer model...</span><span id="answer-progress-time">0.0s</span></div>
+          <div class="progress-track answer-track"><div class="progress-bar answer-progress-bar" id="answer-progress-bar"></div></div>
+        </div>
+      </div>
+      <div class="search-notice hidden" id="search-notice" role="status" aria-live="polite"></div>
+    </section>
+    <section class="welcome recent-welcome" id="welcome">
+      <div class="recent-panel">
+        <div class="recent-header"><div><span class="eyebrow">SEARCH HISTORY</span><h2>Recent searches</h2></div><button id="clear-recent">Clear all history</button></div>
+        <div id="recent-searches" class="recent-searches"></div>
+      </div>
+    </section>
+    <section id="history-notice" class="history-notice hidden"></section>
+    <section id="answer" class="answer hidden"></section>
+    <section id="results" class="results"></section>
+  </main>
+  <section class="setup-overlay hidden" id="setup-overlay" aria-labelledby="setup-title">
+    <div class="setup-card">
+      <div class="setup-brand"><span class="brandmark">M</span><span>Marginalia</span></div>
+      <span class="eyebrow">PRIVATE LOCAL RESEARCH</span>
+      <h2 id="setup-title">Connect your libraries</h2>
+      <p>Choose Zotero, Obsidian, or both. Marginalia creates private working copies and never edits your originals.</p>
+      <label class="setup-folder"><span>Zotero data folder <small>Optional</small></span><div><input id="setup-zotero" readonly placeholder="Choose the folder containing zotero.sqlite, or leave empty"><button type="button" data-pick-folder="zotero">Choose…</button><button type="button" id="clear-zotero">Clear</button></div></label>
+      <label class="setup-folder"><span>Zotero linked attachments <small>Optional</small></span><div><input id="setup-linked" readonly placeholder="Linked Attachment Base Directory (usually detected automatically)"><button type="button" data-pick-folder="linked">Choose…</button><button type="button" id="clear-linked">Clear</button></div></label>
+      <label class="setup-folder"><span>Obsidian vault <small>Optional</small></span><div><input id="setup-obsidian" readonly placeholder="Choose your vault, or leave empty"><button type="button" data-pick-folder="obsidian">Choose…</button><button type="button" id="clear-obsidian">Clear</button></div></label>
+      <div class="setup-note"><strong>Choose at least one library.</strong><span>AI features are optional. BM25 keyword search works immediately; semantic search and generated answers additionally use local Ollama.</span></div>
+      <div class="setup-error hidden" id="setup-error"></div>
+      <button type="button" class="setup-primary" id="setup-start">Copy and build my library</button>
+    </div>
+  </section>
+  <dialog id="refresh-dialog" class="refresh-dialog">
+    <div class="refresh-head"><div><span class="eyebrow">LIBRARY REFRESH</span><h2 id="refresh-title">Preparing your private copies</h2></div><button id="refresh-close" class="close hidden" aria-label="Close">×</button></div>
+    <p id="refresh-message">Starting…</p>
+    <section class="ai-setup hidden" id="ai-setup" aria-live="polite">
+      <div><span class="eyebrow">OPTIONAL LOCAL AI</span><h3>Choose what to install</h3><p>Keyword search is already ready. Nothing below is required.</p></div>
+      <div class="ai-setup-actions">
+        <button type="button" id="ai-get-ollama">Get Ollama</button>
+        <button type="button" id="ai-install-qwen">Install Qwen3 Embedding 0.6B <small>Recommended · 639 MB</small></button>
+        <button type="button" id="ai-install-gemma">Install Gemma 4 12B <small>Optional answers</small></button>
+        <button type="button" id="ai-skip">Skip AI · use BM25</button>
+      </div>
+      <details><summary>Advanced: install another Ollama model</summary><div><input id="ai-custom-embedding" placeholder="embedding model:tag" autocomplete="off"><button type="button" id="ai-install-custom-embedding">Install for search</button></div><div><input id="ai-custom-model" placeholder="answer model:tag" autocomplete="off"><button type="button" id="ai-install-custom">Install for answers</button></div></details>
+      <p class="ai-setup-status" id="ai-setup-status"></p>
+    </section>
+    <div class="source-lock-warning hidden" id="source-lock-warning" role="alert"><strong>Close Zotero temporarily</strong><span id="source-lock-message"></span><small>You may reopen Zotero as soon as setup advances to step 2.</small></div>
+    <div class="refresh-dashboard">
+      <div class="refresh-activity" aria-live="polite"><span>NOW</span><div><strong id="refresh-activity">Preparing private copies…</strong><small id="refresh-detail"></small><small id="refresh-runtime" class="refresh-runtime"></small><ol id="refresh-activity-log"></ol></div></div>
+      <aside class="refresh-pipeline"><span>PIPELINE</span><ol id="refresh-stage-list"></ol></aside>
+    </div>
+    <div class="refresh-track"><div id="refresh-bar"></div></div>
+    <div class="refresh-meta"><span id="refresh-step">Step 0</span><span><b id="refresh-stage-time">0s this stage</b> · <b id="refresh-time">0s total</b></span></div>
+    <div class="refresh-warning hidden" id="refresh-warning"></div>
+  </dialog>
+  <dialog id="ai-models-dialog" class="ai-models-dialog">
+    <button class="close" aria-label="Close">×</button>
+    <span class="eyebrow">OPTIONAL LOCAL AI</span><h2>AI models</h2>
+    <p>Install only what you want. BM25 search works without any models.</p>
+    <div class="ai-model-list">
+      <div><strong>Qwen3 Embedding 0.6B</strong><small>Recommended · semantic search · 639 MB</small><button data-install-embedding="qwen3-embedding:0.6b">Install</button></div>
+      <div><strong>Qwen3 Embedding 8B</strong><small>Optional · higher resource use · 4.7 GB</small><button data-install-embedding="qwen3-embedding:8b">Install</button></div>
+      <div id="custom-embedding-models"></div>
+      <div><strong>Gemma 4 12B</strong><small>Optional · generated answers</small><button data-install-answer="gemma4:12b">Install</button></div>
+    </div>
+    <details><summary>Advanced: install another Ollama model</summary><div class="ai-custom-install"><input id="ai-manager-custom-embedding" placeholder="embedding model:tag"><button id="ai-manager-install-custom-embedding">Install for search</button></div><div class="ai-custom-install"><input id="ai-manager-custom" placeholder="answer model:tag"><button id="ai-manager-install-custom">Install for answers</button></div></details>
+    <div class="ai-manager-progress hidden" id="ai-manager-progress"><span id="ai-manager-status"></span><div><i id="ai-manager-bar"></i></div></div>
+  </dialog>
+  <dialog id="item-dialog"><button class="close" aria-label="Close">×</button><div id="item-detail"></div></dialog>
+  <dialog id="context-dialog" class="context-dialog"><button id="maximize-context" class="maximize" aria-label="Maximize reader" title="Maximize reader">□</button><button class="close" aria-label="Close">×</button><div id="context-detail"></div></dialog>
+  <script src="app.js"></script>
+</body>
+</html>
