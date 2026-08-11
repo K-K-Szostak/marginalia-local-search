@@ -1,12 +1,28 @@
-Marginalia itself is licensed under GNU AGPL v3 only. It includes or relies on
-the following separately maintained open-source components:
+Marginalia itself is licensed under GNU AGPL v3 only.
 
-- Python — Python Software Foundation License
-- NumPy — BSD-3-Clause License
-- PyMuPDF — GNU Affero General Public License v3 or commercial license
-- Tesseract OCR — Apache License 2.0
-- Leptonica and supporting Tesseract libraries — their respective open-source licenses
-- Ollama (optional external installation) — MIT License
+BUNDLED IN THE UNIVERSAL ZIP
+----------------------------
+
+The Windows package contains a minimal Tesseract OCR runtime and its required
+shared libraries. A file-by-file component and license map, the complete
+license texts, copyright notices, and corresponding-source information are in:
+
+    THIRD-PARTY-LICENSES/README.md
+
+The release build uses OCR-RUNTIME-FILES.txt as a strict allowlist, so no
+unmapped executable or shared library can be added to the ZIP accidentally.
+
+INSTALLED OR USED SEPARATELY
+----------------------------
+
+On first launch, Marginalia may create a private Python virtual environment and
+install the dependencies declared in requirements.txt. These packages are not
+embedded in the downloadable Marginalia ZIP and retain their own licenses:
+
+- Python - Python Software Foundation License
+- NumPy - BSD-3-Clause License
+- PyMuPDF - GNU Affero General Public License v3 or commercial license
+- Ollama (optional, external installation) - MIT License
 
 The complete Marginalia license is in LICENSE. Redistributors must preserve all
 applicable copyright and license notices for third-party components.

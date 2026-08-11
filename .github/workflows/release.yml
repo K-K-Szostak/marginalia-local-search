@@ -9,7 +9,7 @@ on:
       tag:
         description: Existing version tag to publish
         required: true
-        default: v0.1.0-beta.6
+        default: v0.1.0-beta.7
 
 permissions:
   contents: write
@@ -39,9 +39,35 @@ jobs:
             --output "$runtime_archive"
           echo "$runtime_sha256  $runtime_archive" | sha256sum --check --strict
           unzip -q "$runtime_archive" -d "$runtime_root"
-          cp -R "$runtime_root/Marginalia-Windows-v0.1.0-beta.3/tools" "$app_root/tools"
+          runtime_source="$runtime_root/Marginalia-Windows-v0.1.0-beta.3/tools/tesseract"
+          runtime_target="$app_root/tools/tesseract"
+          mkdir -p "$runtime_target"
+
+          # Copy only reviewed files. Reject absolute paths, traversal, duplicate
+          # entries, missing files, and any mismatch between the allowlist and ZIP.
+          sed '/^[[:space:]]*$/d; /^[[:space:]]*#/d; s/\r$//' OCR-RUNTIME-FILES.txt > "$RUNNER_TEMP/ocr-expected.txt"
+          if grep -Eq '(^/|^[A-Za-z]:|(^|/)\.\.(/|$)|\\)' "$RUNNER_TEMP/ocr-expected.txt"; then
+            echo "Unsafe path in OCR-RUNTIME-FILES.txt" >&2
+            exit 1
+          fi
+          if [ "$(sort "$RUNNER_TEMP/ocr-expected.txt" | uniq -d | wc -l)" -ne 0 ]; then
+            echo "Duplicate path in OCR-RUNTIME-FILES.txt" >&2
+            exit 1
+          fi
+          while IFS= read -r relative; do
+            source_file="$runtime_source/$relative"
+            target_file="$runtime_target/$relative"
+            test -f "$source_file" || { echo "Missing approved OCR file: $relative" >&2; exit 1; }
+            mkdir -p "$(dirname "$target_file")"
+            cp "$source_file" "$target_file"
+          done < "$RUNNER_TEMP/ocr-expected.txt"
+          (cd "$runtime_target" && find . -type f -printf '%P\n' | sort) > "$RUNNER_TEMP/ocr-actual.txt"
+          sort "$RUNNER_TEMP/ocr-expected.txt" > "$RUNNER_TEMP/ocr-expected-sorted.txt"
+          diff -u "$RUNNER_TEMP/ocr-expected-sorted.txt" "$RUNNER_TEMP/ocr-actual.txt"
+
           echo "babb405f4366b480d02cd8ff2bac8d497170f6c1711ce6f3d5d8bf0fb7fa6ed9  $app_root/tools/tesseract/tesseract.exe" | sha256sum --check --strict
           echo "279488c41bd341edaa03dcd097faa33604ba330e6254ac97bcaf2229d8d7ac1a  $app_root/tools/tesseract/libtesseract-5.dll" | sha256sum --check --strict
+          echo "7d4322bd2a7749724879683fc3912cb542f19906c83bcc1a52132556427170b2  $app_root/tools/tesseract/tessdata/eng.traineddata" | sha256sum --check --strict
 
           files=(
             app
@@ -58,6 +84,7 @@ jobs:
             library_paths.py
             local_network.py
             LICENSE
+            OCR-RUNTIME-FILES.txt
             OCR-RUNTIME-PROVENANCE.txt
             ocr_support.py
             prepare_app_search.py
@@ -70,6 +97,7 @@ jobs:
             source_manager.py
             "START HERE.txt"
             THIRD-PARTY-NOTICES.txt
+            THIRD-PARTY-LICENSES
           )
           cp -R "${files[@]}" "$app_root/"
           cp "Start Marginalia.cmd" "Start Marginalia.sh" "Start Marginalia.command" "$stage/"
