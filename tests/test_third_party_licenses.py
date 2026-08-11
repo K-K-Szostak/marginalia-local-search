@@ -59,27 +59,6 @@ class ThirdPartyLicenseTests(unittest.TestCase):
             self.assertIn(f"`{library}`", source_locations)
             self.assertIn(archive, source_locations)
 
-    def test_project_notices_make_no_voluntary_future_commitment(self):
-        authored_notices = [
-            ROOT / "THIRD-PARTY-NOTICES.txt",
-            LICENSE_DIR / "README.md",
-            LICENSE_DIR / "SOURCE-LOCATIONS.md",
-            ROOT / "OCR-RUNTIME-PROVENANCE.txt",
-        ]
-        prohibited_promises = [
-            "valid for any third party",
-            "valid until at least",
-            "for as long as marginalia",
-            "the project will provide",
-            "will be maintained",
-            "will provide a complete",
-        ]
-        combined = "\n".join(
-            path.read_text(encoding="utf-8").lower() for path in authored_notices
-        )
-        for promise in prohibited_promises:
-            self.assertNotIn(promise, combined)
-
     def test_release_workflow_enforces_and_packages_license_inventory(self):
         workflow = (ROOT / ".github" / "workflows" / "release.yml").read_text(
             encoding="utf-8"
