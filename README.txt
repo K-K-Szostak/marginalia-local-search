@@ -2,7 +2,7 @@ MARGINALIA — PRIVATE LOCAL RESEARCH LIBRARY
 
 VERSION AND PLATFORM
 
-This is Marginalia v0.1.0-beta.2. The supported release platform is Windows
+This is Marginalia v0.1.0-beta.3. The supported release platform is Windows
 10/11 on x64 computers. macOS and Linux support is planned but has not yet been
 implemented or verified. Do not describe this release as cross-platform.
 

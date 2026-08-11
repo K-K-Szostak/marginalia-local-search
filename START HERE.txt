@@ -11,13 +11,13 @@ BEFORE YOU START
 
 HOW TO START
 
-1. Download Marginalia-Windows-v0.1.0-beta.2.zip from the GitHub Release page.
+1. Download Marginalia-Windows-v0.1.0-beta.3.zip from the GitHub Release page.
    Do not download the automatically generated “Source code” archives.
 
 2. Right-click the downloaded ZIP file and choose “Extract All”.
    Do not run Marginalia from inside the ZIP preview.
 
-3. Open the extracted Marginalia-Windows-v0.1.0-beta.2 folder.
+3. Open the extracted Marginalia-Windows-v0.1.0-beta.3 folder.
 
 4. Double-click “Start Marginalia.cmd”. Keep the command window open while
    using Marginalia.
@@ -59,4 +59,3 @@ PRIVACY AND LICENSE
 Library processing happens locally. Optional AI uses local Ollama models.
 Marginalia is free software under GNU AGPL v3 and is provided without warranty.
 Source code: https://github.com/K-K-Szostak/marginalia-local-search
-

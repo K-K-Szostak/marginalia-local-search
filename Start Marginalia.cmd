@@ -9,7 +9,9 @@ set "MARGINALIA_PYTHON=%MARGINALIA_VENV%\Scripts\python.exe"
 if not exist "%MARGINALIA_PYTHON%" (
   echo Marginalia needs Python 3.12 on this computer.
   echo The first start creates a private Python environment in:
-  echo   %CD%\%MARGINALIA_VENV%
+  rem Delayed expansion keeps parentheses and other path characters from
+  rem being parsed as batch syntax inside this parenthesized block.
+  echo   !CD!\%MARGINALIA_VENV%
   echo.
   set "MARGINALIA_BOOTSTRAP="
   set "MARGINALIA_BOOTSTRAP_ARGS="

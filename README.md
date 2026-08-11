@@ -7,8 +7,8 @@ creates searchable working copies and never edits the original libraries.
 
 ## Download and start
 
-1. Open the [Windows beta Release](https://github.com/K-K-Szostak/marginalia-local-search/releases/tag/v0.1.0-beta.2).
-2. Download **`Marginalia-Windows-v0.1.0-beta.2.zip`**. Do not download the
+1. Open the [Windows beta Release](https://github.com/K-K-Szostak/marginalia-local-search/releases/tag/v0.1.0-beta.3).
+2. Download **`Marginalia-Windows-v0.1.0-beta.3.zip`**. Do not download the
    automatically generated “Source code” archives.
 3. Right-click the ZIP file, select **Extract All**, and open the extracted folder.
 4. Double-click **`Start Marginalia.cmd`** and keep its command window open.
