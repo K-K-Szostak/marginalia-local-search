@@ -9,8 +9,9 @@ The complete, hash-pinned runtime source and provenance are recorded in
 allowlist: the build copies no executable or DLL that is not needed by the
 Tesseract command-line program used by Marginalia.
 
-For the bundled copyleft libraries, exact corresponding-source locations are
-listed in [`SOURCE-OFFER.md`](SOURCE-OFFER.md).
+For the bundled copyleft libraries, upstream source locations are listed in
+[`SOURCE-LOCATIONS.md`](SOURCE-LOCATIONS.md). That informational list is not a
+project-authored offer or support commitment.
 
 The following table maps every distributed Windows OCR file to its upstream
 component and the accompanying license notice. Windows system DLLs are not

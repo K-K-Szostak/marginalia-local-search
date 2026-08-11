@@ -45,8 +45,10 @@ class ThirdPartyLicenseTests(unittest.TestCase):
             self.assertTrue(notice.is_file(), name)
             self.assertGreater(notice.stat().st_size, 100, name)
 
-    def test_copyleft_runtime_libraries_have_corresponding_source_links(self):
-        source_offer = (LICENSE_DIR / "SOURCE-OFFER.md").read_text(encoding="utf-8")
+    def test_copyleft_runtime_libraries_have_upstream_source_links(self):
+        source_locations = (LICENSE_DIR / "SOURCE-LOCATIONS.md").read_text(
+            encoding="utf-8"
+        )
         expected = {
             "libjbig-0.dll": "jbigkit-2.1.tar.gz",
             "libiconv-2.dll": "libiconv-1.17.tar.gz",
@@ -54,8 +56,29 @@ class ThirdPartyLicenseTests(unittest.TestCase):
             "libstdc++-6.dll": "gcc-14.1.0.tar.xz",
         }
         for library, archive in expected.items():
-            self.assertIn(f"`{library}`", source_offer)
-            self.assertIn(archive, source_offer)
+            self.assertIn(f"`{library}`", source_locations)
+            self.assertIn(archive, source_locations)
+
+    def test_project_notices_make_no_voluntary_future_commitment(self):
+        authored_notices = [
+            ROOT / "THIRD-PARTY-NOTICES.txt",
+            LICENSE_DIR / "README.md",
+            LICENSE_DIR / "SOURCE-LOCATIONS.md",
+            ROOT / "OCR-RUNTIME-PROVENANCE.txt",
+        ]
+        prohibited_promises = [
+            "valid for any third party",
+            "valid until at least",
+            "for as long as marginalia",
+            "the project will provide",
+            "will be maintained",
+            "will provide a complete",
+        ]
+        combined = "\n".join(
+            path.read_text(encoding="utf-8").lower() for path in authored_notices
+        )
+        for promise in prohibited_promises:
+            self.assertNotIn(promise, combined)
 
     def test_release_workflow_enforces_and_packages_license_inventory(self):
         workflow = (ROOT / ".github" / "workflows" / "release.yml").read_text(
