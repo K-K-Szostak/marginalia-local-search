@@ -41,6 +41,12 @@ jobs:
           extract="$RUNNER_TEMP/Marginalia package (published)"
           unzip -q "$zip" -d "$extract"
           echo "MARGINALIA_PACKAGE_ROOT=$extract/Marginalia-$tag" >> "$GITHUB_ENV"
+      - name: Install the Linux desktop prerequisite
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y python3-tk
       - name: Start the published Windows package and query its API
         if: runner.os == 'Windows'
         shell: pwsh
