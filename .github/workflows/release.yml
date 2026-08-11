@@ -1,0 +1,72 @@
+name: Publish Windows release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build minimal Windows package
+        shell: pwsh
+        run: |
+          $version = "${{ github.ref_name }}".TrimStart("v")
+          $folderName = "Marginalia-Windows-$version"
+          $stage = Join-Path $env:RUNNER_TEMP $folderName
+          $archive = Join-Path $PWD "$folderName.zip"
+          New-Item -ItemType Directory -Path $stage | Out-Null
+          $files = @(
+            "app",
+            "tools",
+            "build_semantic_index.py",
+            "build_unified_library.py",
+            "clean_extracted_text.py",
+            "create_empty_library.py",
+            "enrich_metadata.py",
+            "extraction_cache.py",
+            "extract_missing_documents.py",
+            "extract_pdf_corpus.py",
+            "import_obsidian.py",
+            "launcher.py",
+            "library_paths.py",
+            "LICENSE",
+            "ocr_support.py",
+            "prepare_app_search.py",
+            "progress_output.py",
+            "README.md",
+            "README.txt",
+            "refresh_manager.py",
+            "requirements.txt",
+            "semantic_models.py",
+            "source_manager.py",
+            "START HERE.txt",
+            "Start Marginalia.cmd",
+            "THIRD-PARTY-NOTICES.txt"
+          )
+          foreach ($file in $files) {
+            Copy-Item -LiteralPath $file -Destination $stage -Recurse
+          }
+          Compress-Archive -LiteralPath $stage -DestinationPath $archive -CompressionLevel Optimal
+          $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $archive).Hash
+          "$hash  $folderName.zip" | Set-Content -Encoding ascii "$archive.sha256"
+
+      - name: Create GitHub release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $version = "${{ github.ref_name }}".TrimStart("v")
+          $folderName = "Marginalia-Windows-$version"
+          gh release create "${{ github.ref_name }}" `
+            "$folderName.zip" `
+            "$folderName.zip.sha256" `
+            --title "Marginalia $version" `
+            --notes "Windows beta hotfix. Fixes Start Marginalia.cmd failing when the extracted folder path contains parentheses. Download the ZIP, extract it, and run Start Marginalia.cmd." `
+            --prerelease
