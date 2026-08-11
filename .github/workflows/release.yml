@@ -84,6 +84,11 @@ jobs:
             gh release delete-asset $tag "Marginalia-Windows-$version.zip" --yes 2>$null
             gh release delete-asset $tag "Marginalia-Windows-$version.zip.sha256" --yes 2>$null
             gh release upload $tag "$folderName.zip" "$folderName.zip.sha256" --clobber
+            gh release edit $tag `
+              --draft=false `
+              --prerelease `
+              --title "Marginalia $version" `
+              --notes "Windows beta hotfix. Fixes Start Marginalia.cmd failing when the extracted folder path contains parentheses. Download the ZIP, extract it, and run Start Marginalia.cmd."
           } else {
             gh release create $tag `
               "$folderName.zip" `
