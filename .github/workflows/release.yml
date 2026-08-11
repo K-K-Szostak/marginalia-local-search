@@ -17,8 +17,8 @@ jobs:
       - name: Build minimal Windows package
         shell: pwsh
         run: |
-          $version = "${{ github.ref_name }}".TrimStart("v")
-          $folderName = "Marginalia-Windows-$version"
+          $tag = "${{ github.ref_name }}"
+          $folderName = "Marginalia-Windows-$tag"
           $stage = Join-Path $env:RUNNER_TEMP $folderName
           $archive = Join-Path $PWD "$folderName.zip"
           New-Item -ItemType Directory -Path $stage | Out-Null
@@ -71,11 +71,18 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $version = "${{ github.ref_name }}".TrimStart("v")
-          $folderName = "Marginalia-Windows-$version"
-          gh release create "${{ github.ref_name }}" `
-            "$folderName.zip" `
-            "$folderName.zip.sha256" `
-            --title "Marginalia $version" `
-            --notes "Windows beta hotfix. Fixes Start Marginalia.cmd failing when the extracted folder path contains parentheses. Download the ZIP, extract it, and run Start Marginalia.cmd." `
-            --prerelease
+          $tag = "${{ github.ref_name }}"
+          $version = $tag.TrimStart("v")
+          $folderName = "Marginalia-Windows-$tag"
+          if (gh release view $tag 2>$null) {
+            gh release delete-asset $tag "Marginalia-Windows-$version.zip" --yes 2>$null
+            gh release delete-asset $tag "Marginalia-Windows-$version.zip.sha256" --yes 2>$null
+            gh release upload $tag "$folderName.zip" "$folderName.zip.sha256" --clobber
+          } else {
+            gh release create $tag `
+              "$folderName.zip" `
+              "$folderName.zip.sha256" `
+              --title "Marginalia $version" `
+              --notes "Windows beta hotfix. Fixes Start Marginalia.cmd failing when the extracted folder path contains parentheses. Download the ZIP, extract it, and run Start Marginalia.cmd." `
+              --prerelease
+          }
