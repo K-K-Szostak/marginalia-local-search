@@ -22,9 +22,18 @@ jobs:
           $stage = Join-Path $env:RUNNER_TEMP $folderName
           $archive = Join-Path $PWD "$folderName.zip"
           New-Item -ItemType Directory -Path $stage | Out-Null
+          $runtimeArchive = Join-Path $env:RUNNER_TEMP "Marginalia-Windows-v0.1.0-beta.2.zip"
+          $runtimeRoot = Join-Path $env:RUNNER_TEMP "previous-release"
+          Invoke-WebRequest `
+            -Uri "https://github.com/K-K-Szostak/marginalia-local-search/releases/download/v0.1.0-beta.2/Marginalia-Windows-v0.1.0-beta.2.zip" `
+            -OutFile $runtimeArchive
+          Expand-Archive -LiteralPath $runtimeArchive -DestinationPath $runtimeRoot
+          Copy-Item `
+            -LiteralPath (Join-Path $runtimeRoot "Marginalia-Windows-v0.1.0-beta.2\tools") `
+            -Destination $stage `
+            -Recurse
           $files = @(
             "app",
-            "tools",
             "build_semantic_index.py",
             "build_unified_library.py",
             "clean_extracted_text.py",
