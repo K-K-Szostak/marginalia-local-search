@@ -4,6 +4,12 @@ on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing version tag to publish
+        required: true
+        default: v0.1.0-beta.3
 
 permissions:
   contents: write
@@ -17,7 +23,7 @@ jobs:
       - name: Build minimal Windows package
         shell: pwsh
         run: |
-          $tag = "${{ github.ref_name }}"
+          $tag = "${{ inputs.tag || github.ref_name }}"
           $folderName = "Marginalia-Windows-$tag"
           $stage = Join-Path $env:RUNNER_TEMP $folderName
           $archive = Join-Path $PWD "$folderName.zip"
@@ -71,7 +77,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $tag = "${{ github.ref_name }}"
+          $tag = "${{ inputs.tag || github.ref_name }}"
           $version = $tag.TrimStart("v")
           $folderName = "Marginalia-Windows-$tag"
           if (gh release view $tag 2>$null) {
