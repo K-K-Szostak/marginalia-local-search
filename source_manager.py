@@ -396,11 +396,11 @@ def cleanup_snapshot_generations(current_root: str) -> None:
     for candidate in root.iterdir():
         resolved = candidate.resolve()
         if resolved != current and resolved.parent == root and resolved.is_dir():
-            shutil.rmtree(resolved)
+            shutil.rmtree(filesystem_path(resolved))
     for legacy_name in ("zotero", "obsidian"):
         legacy = (SNAPSHOT_ROOT / legacy_name).resolve()
         if legacy.parent == SNAPSHOT_ROOT.resolve() and legacy.is_dir():
-            shutil.rmtree(legacy)
+            shutil.rmtree(filesystem_path(legacy))
 
 
 def discard_snapshot_generation(snapshot: dict | None) -> None:
@@ -409,7 +409,7 @@ def discard_snapshot_generation(snapshot: dict | None) -> None:
     root = SNAPSHOT_GENERATIONS.resolve()
     candidate = Path(snapshot["snapshot_root"]).resolve()
     if candidate.parent == root and candidate.is_dir():
-        shutil.rmtree(candidate)
+        shutil.rmtree(filesystem_path(candidate))
 
 
 def choose_folder(kind: str) -> str:

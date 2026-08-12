@@ -12,6 +12,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from progress_output import progress
+from source_manager import filesystem_path
 
 
 BASE = Path(__file__).resolve().parent
@@ -84,6 +85,15 @@ CREATE VIRTUAL TABLE IF NOT EXISTS obsidian_search USING fts5(
   tokenize='unicode61 remove_diacritics 2'
 );
 """
+
+
+def read_text(path: Path) -> str:
+    with open(filesystem_path(path), encoding="utf-8", errors="replace") as note_file:
+        return note_file.read()
+
+
+def file_stat(path: Path):
+    return os.stat(filesystem_path(path))
 
 
 def iso_time(timestamp: float) -> str:
@@ -255,11 +265,11 @@ def main():
         if ignored(path, vault):
             excluded += 1
             continue
-        raw = path.read_text(encoding="utf-8", errors="replace")
+        raw = read_text(path)
         metadata, body, offset = parse_frontmatter(raw)
         relative = path.relative_to(vault).as_posix()
         note_id = hashlib.sha1(relative.casefold().encode("utf-8")).hexdigest()
-        stat = path.stat()
+        stat = file_stat(path)
         tags = list(dict.fromkeys(values(metadata, "tags", "tag") + inline_tags(body)))
         aliases = values(metadata, "aliases", "alias")
         authors = values(metadata, "authors", "author")
@@ -339,7 +349,7 @@ def main():
             continue
         relative = path.relative_to(vault).as_posix()
         progress(f"Cataloguing Obsidian asset: {relative}", asset_number, len(asset_paths))
-        stat = path.stat()
+        stat = file_stat(path)
         db.execute(
             "INSERT INTO obsidian_assets VALUES(?,?,?,?,?)",
             (relative, path.name, mimetypes.guess_type(path.name)[0] or "application/octet-stream", stat.st_size, iso_time(stat.st_mtime)),

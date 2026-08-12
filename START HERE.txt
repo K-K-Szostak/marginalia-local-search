@@ -17,12 +17,12 @@ BEFORE YOU START
 
 HOW TO START
 
-1. Download Marginalia-v0.1.0-beta.7.zip from the GitHub Release page.
+1. Download Marginalia-v0.1.0-beta.8.zip from the GitHub Release page.
    Do not download the automatically generated “Source code” archives.
 
 2. Extract the ZIP. Do not run Marginalia from inside the ZIP preview.
 
-3. Open the extracted Marginalia-v0.1.0-beta.7 folder. Its top level contains
+3. Open the extracted Marginalia-v0.1.0-beta.8 folder. Its top level contains
    three launchers and one “marginalia” folder with the application files.
 
 4. Choose the launcher for your computer:

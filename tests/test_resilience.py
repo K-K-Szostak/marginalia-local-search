@@ -13,6 +13,7 @@ import numpy as np
 
 import app.server as server
 import build_semantic_index
+import import_obsidian
 import refresh_manager
 import semantic_models
 import source_manager
@@ -328,6 +329,24 @@ class SnapshotGenerationTests(unittest.TestCase):
             self.assertTrue(value.startswith("\\\\?\\"))
         else:
             self.assertEqual(value, str(path.absolute()))
+
+    @unittest.skipUnless(os.name == "nt", "Windows extended paths only")
+    def test_extended_path_can_be_read_and_discarded(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            generations = root / "generations"
+            generation = generations / "generation"
+            long_parent = generation / "obsidian" / ("a" * 100) / ("b" * 100)
+            os.makedirs(source_manager.filesystem_path(long_parent), exist_ok=True)
+            note = long_parent / (("c" * 80) + ".md")
+            with open(source_manager.filesystem_path(note), "w", encoding="utf-8") as stream:
+                stream.write("# Long note")
+            self.assertGreater(len(str(note)), 260)
+            self.assertEqual(import_obsidian.read_text(note), "# Long note")
+            self.assertEqual(import_obsidian.file_stat(note).st_size, len("# Long note"))
+            with patch.object(source_manager, "SNAPSHOT_GENERATIONS", generations):
+                source_manager.discard_snapshot_generation({"snapshot_root": str(generation)})
+            self.assertFalse(os.path.exists(source_manager.filesystem_path(generation)))
 
     def test_snapshot_skips_source_file_that_disappears_during_copy(self):
         with tempfile.TemporaryDirectory() as directory:
