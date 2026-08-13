@@ -736,10 +736,6 @@ def _run_semantic_queue(config: dict, stage, models: list[str], number: int, tot
         queue.pop(0)
         update(semantic_queue=queue, semantic_model=queue[0] if queue else "",
                semantic_completed=list(dict.fromkeys(completed)))
-        try:
-            run_stage(*semantic, number, total)
-        except Exception as exc:
-            update(warnings=state()["warnings"] + [f"Semantic search was skipped: {exc}"])
     update_activity("Everything is ready for searching.", 0, 0)
     update(running=False, phase="complete", message="Library refresh complete",
            current=total, total=total, finished_at=time.time(), resume_required=False,

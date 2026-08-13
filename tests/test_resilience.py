@@ -153,6 +153,26 @@ class RefreshResumeTests(unittest.TestCase):
         rebuilt=[call.args[3][1] for call in run.call_args_list]
         self.assertEqual(rebuilt,["qwen3-embedding:8b","snowflake-arctic-embed2:latest"])
 
+    def test_semantic_queue_runs_each_model_once_without_false_warning(self):
+        stage=("semantic","Updating semantic search","build_semantic_index.py",[])
+        original = dict(refresh_manager.STATE)
+        try:
+            refresh_manager.STATE.update(warnings=[],semantic_completed=[],semantic_model_total=0)
+            with tempfile.TemporaryDirectory() as directory, \
+                 patch.object(refresh_manager,"STATE_PATH",Path(directory)/"state.json"), \
+                 patch.object(refresh_manager,"semantic_preflight",return_value=""), \
+                 patch.object(refresh_manager,"run_stage") as run:
+                refresh_manager._run_semantic_queue(
+                    {},stage,["qwen3-embedding:0.6b"],9,9,None)
+            run.assert_called_once_with(
+                "semantic","Updating semantic search (qwen3-embedding:0.6b)",
+                "build_semantic_index.py",["--model","qwen3-embedding:0.6b"],
+                9,9,snapshot=None)
+            self.assertEqual(refresh_manager.STATE["warnings"],[])
+            self.assertEqual(refresh_manager.STATE["semantic_completed"],["qwen3-embedding:0.6b"])
+        finally:
+            refresh_manager.STATE.clear(); refresh_manager.STATE.update(original)
+
     def test_semantic_resume_passes_selected_model_to_indexer(self):
         config = {"zotero_path": "source", "obsidian_path": ""}
         with patch.object(refresh_manager, "semantic_preflight", return_value="") as preflight, \
