@@ -9,7 +9,7 @@ on:
       tag:
         description: Existing version tag to publish
         required: true
-        default: v0.1.0-beta.9
+        default: v0.1.0-beta.10
 
 permissions:
   contents: write
@@ -115,7 +115,7 @@ jobs:
           tag="${{ inputs.tag || github.ref_name }}"
           version="${tag#v}"
           folder_name="Marginalia-$tag"
-          notes="Fixes a semantic-refresh completion defect that displayed a false 'name semantic is not defined' warning and attempted an unintended duplicate indexing run after a model had completed successfully. Also includes the beta.8 Windows long-path fix for deeply nested Obsidian notes. One transparent source package for Windows, Linux and macOS. The top folder contains only the three platform launchers and the marginalia application folder. Windows includes the bundled OCR runtime; Linux and macOS can use system Tesseract. Development and risk disclosure: Marginalia was vibe-coded through iterative collaboration with AI coding tools, under human direction and testing. It is experimental beta software, provided as-is and without warranty. It may contain defects; use it at your own risk."
+          notes="Simplifies Zotero setup: selecting the Zotero data folder is normally sufficient. Marginalia now detects the Linked Attachment Base Directory automatically on Windows, macOS and Linux, supports absolute linked files spread across multiple folders, and reveals the manual base-folder chooser only when unresolved portable attachment paths actually require it. Also includes the beta.9 semantic-refresh fix and beta.8 Windows long-path fix. One transparent source package for Windows, Linux and macOS. The top folder contains only the three platform launchers and the marginalia application folder. Windows includes the bundled OCR runtime; Linux and macOS can use system Tesseract. Development and risk disclosure: Marginalia was vibe-coded through iterative collaboration with AI coding tools, under human direction and testing. It is experimental beta software, provided as-is and without warranty. It may contain defects; use it at your own risk."
           if gh release view "$tag" >/dev/null 2>&1; then
             gh release upload "$tag" "$folder_name.zip" "$folder_name.zip.sha256" --clobber
             gh release edit "$tag" --draft=false --prerelease --title "Marginalia $version" --notes "$notes"

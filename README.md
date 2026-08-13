@@ -13,8 +13,8 @@ creates searchable working copies and never edits the original libraries.
 
 ## Download and start
 
-1. Open the [beta Release](https://github.com/K-K-Szostak/marginalia-local-search/releases/tag/v0.1.0-beta.9).
-2. Download **`Marginalia-v0.1.0-beta.9.zip`**. Do not download the
+1. Open the [beta Release](https://github.com/K-K-Szostak/marginalia-local-search/releases/tag/v0.1.0-beta.10).
+2. Download **`Marginalia-v0.1.0-beta.10.zip`**. Do not download the
    automatically generated “Source code” archives.
 3. Extract the ZIP and open the extracted folder. The only files at this level
    are the three launchers and the `marginalia` application folder.
