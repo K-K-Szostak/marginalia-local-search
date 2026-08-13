@@ -9,7 +9,7 @@ on:
       tag:
         description: Existing version tag to publish
         required: true
-        default: v0.1.0-beta.11
+        default: v0.1.0-beta.12
 
 permissions:
   contents: write
@@ -115,7 +115,7 @@ jobs:
           tag="${{ inputs.tag || github.ref_name }}"
           version="${tag#v}"
           folder_name="Marginalia-$tag"
-          notes="Fixes unsafe Obsidian source selection and locked-file snapshot failures. Marginalia now accepts only an actual vault containing a .obsidian directory, skips transiently locked files in a valid vault, and prevents cleanup errors from masking the original refresh error. Also includes the beta.10 linked-attachment setup improvements, beta.9 semantic-refresh fix, and beta.8 Windows long-path fix. One transparent source package for Windows, Linux and macOS. The top folder contains only the three platform launchers and the marginalia application folder. Windows includes the bundled OCR runtime; Linux and macOS can use system Tesseract. Development and risk disclosure: Marginalia was vibe-coded through iterative collaboration with AI coding tools, under human direction and testing. It is experimental beta software, provided as-is and without warranty. It may contain defects; use it at your own risk."
+          notes="Fixes optional-AI setup when Ollama is installed but not running. Marginalia now starts its isolated local Ollama service before checking the model store, reuses models already present, and asks users to install Ollama first only when it is genuinely absent. Also includes the beta.11 Obsidian source-safety fixes and earlier refresh improvements. One transparent source package for Windows, Linux and macOS. The top folder contains only the three platform launchers and the marginalia application folder. Windows includes the bundled OCR runtime; Linux and macOS can use system Tesseract. Development and risk disclosure: Marginalia was vibe-coded through iterative collaboration with AI coding tools, under human direction and testing. It is experimental beta software, provided as-is and without warranty. It may contain defects; use it at your own risk."
           if gh release view "$tag" >/dev/null 2>&1; then
             gh release upload "$tag" "$folder_name.zip" "$folder_name.zip.sha256" --clobber
             gh release edit "$tag" --draft=false --prerelease --title "Marginalia $version" --notes "$notes"
