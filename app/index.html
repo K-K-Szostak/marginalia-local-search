@@ -88,14 +88,14 @@
     <div class="refresh-head"><div><span class="eyebrow">LIBRARY REFRESH</span><h2 id="refresh-title">Preparing your private copies</h2></div><button id="refresh-close" class="close hidden" aria-label="Close">×</button></div>
     <p id="refresh-message">Starting…</p>
     <section class="ai-setup hidden" id="ai-setup" aria-live="polite">
-      <div><span class="eyebrow">OPTIONAL LOCAL AI</span><h3>Choose what to install</h3><p>Keyword search is already ready. Nothing below is required.</p></div>
+      <div><span class="eyebrow">OPTIONAL LOCAL AI</span><h3 id="ai-setup-title">Choose what to install</h3><p id="ai-setup-copy">Keyword search is already ready. Nothing below is required.</p></div>
       <div class="ai-setup-actions">
-        <button type="button" id="ai-get-ollama">Get Ollama</button>
+        <button type="button" id="ai-get-ollama">Install Ollama first <small>Required only for optional AI</small></button>
         <button type="button" id="ai-install-qwen">Install Qwen3 Embedding 0.6B <small>Recommended · 639 MB</small></button>
         <button type="button" id="ai-install-gemma">Install Gemma 4 12B <small>Optional answers</small></button>
         <button type="button" id="ai-skip">Skip AI · use BM25</button>
       </div>
-      <details><summary>Advanced: install another Ollama model</summary><div><input id="ai-custom-embedding" placeholder="embedding model:tag" autocomplete="off"><button type="button" id="ai-install-custom-embedding">Install for search</button></div><div><input id="ai-custom-model" placeholder="answer model:tag" autocomplete="off"><button type="button" id="ai-install-custom">Install for answers</button></div></details>
+      <details id="ai-custom-models"><summary>Advanced: install another Ollama model</summary><div><input id="ai-custom-embedding" placeholder="embedding model:tag" autocomplete="off"><button type="button" id="ai-install-custom-embedding">Install for search</button></div><div><input id="ai-custom-model" placeholder="answer model:tag" autocomplete="off"><button type="button" id="ai-install-custom">Install for answers</button></div></details>
       <p class="ai-setup-status" id="ai-setup-status"></p>
     </section>
     <div class="source-lock-warning hidden" id="source-lock-warning" role="alert"><strong>Close Zotero temporarily</strong><span id="source-lock-message"></span><small>You may reopen Zotero as soon as setup advances to step 2.</small></div>

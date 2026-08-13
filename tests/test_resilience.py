@@ -280,6 +280,18 @@ class SemanticRuntimeTests(unittest.TestCase):
         self.assertEqual(selected["role"], "cpu-fallback")
         self.assertEqual(selected["base_url"], "http://127.0.0.1:11435")
 
+    def test_semantic_preflight_starts_stopped_ollama_before_judging_models(self):
+        model = "qwen3-embedding:0.6b"
+        services = iter([None, {
+            "role": "gpu-preferred", "base_url": "http://127.0.0.1:11436", "model": model,
+        }])
+        with patch.object(refresh_manager, "choose_semantic_service", side_effect=lambda _model: next(services)), \
+             patch.object(refresh_manager, "_ollama_models", side_effect=ConnectionError("offline")), \
+             patch.object(refresh_manager, "ollama_executable", return_value=Path("ollama.exe")), \
+             patch.object(refresh_manager, "ensure_bulk_embedding_ollama", return_value=True) as ensure:
+            self.assertEqual(refresh_manager.semantic_preflight(model), "")
+        ensure.assert_called_once_with()
+
     def test_runtime_uses_ollama_vram_report_not_service_assumption(self):
         gpu = io.BytesIO(json.dumps({"models": [{
             "name": build_semantic_index.EMBED_MODEL, "size": 1000, "size_vram": 1000,

@@ -453,7 +453,7 @@ def choose_semantic_service(model: str | None = None) -> dict | None:
 
 
 def semantic_preflight(model: str | None = None) -> str:
-    """Prefer GPU-capable Ollama for bulk indexing and accept the isolated CPU service as fallback."""
+    """Start local Ollama when possible, then decide whether the model is missing."""
     model = str(model or os.getenv("EMBED_MODEL", "qwen3-embedding:0.6b")).strip()
     if choose_semantic_service(model):
         return ""
@@ -465,6 +465,15 @@ def semantic_preflight(model: str | None = None) -> str:
             return ""
     except Exception:
         pass
+    # An offline service cannot tell us which models are installed. Start the
+    # isolated bulk service first; it shares Ollama's local model store and lets
+    # Marginalia distinguish an installed model from a genuinely missing one.
+    if ollama_executable():
+        try:
+            if ensure_bulk_embedding_ollama() and choose_semantic_service(model):
+                return ""
+        except (OSError, RuntimeError, subprocess.SubprocessError):
+            pass
     any_service = False
     for _, base_url in semantic_service_candidates():
         try:
@@ -475,7 +484,7 @@ def semantic_preflight(model: str | None = None) -> str:
     if any_service:
         return f"The required embedding model {model} is not downloaded. Run: ollama pull {model}. BM25 keyword search is ready now."
     if ollama_executable():
-        return "Ollama is installed but no embedding service is running. Start Ollama, then refresh again. BM25 keyword search is ready now."
+        return "Ollama is installed but Marginalia could not start its local embedding service. You can retry or skip AI; BM25 keyword search is ready now."
     return "Ollama is not installed. Semantic search and generated answers were skipped; BM25 keyword search is ready now."
 
 
