@@ -575,6 +575,18 @@ def ollama_status(timeout=5):
         embedding_available=True
     except Exception as exc:
         embedding_detail=str(exc)
+        # The GPU-capable bulk service is intentionally stopped after indexing.
+        # If a finished index exists, bring up the lightweight query service so
+        # the first status poll after a refresh does not incorrectly disable it.
+        ready_index=any(semantic_index_status(model).get("ready") for model in EMBED_MODELS)
+        if installed and ready_index:
+            try:
+                ensure_embedding_ollama(timeout=timeout)
+                embed_names=ollama_names(EMBED_OLLAMA_BASE_URL,timeout)
+                embedding_available=True
+                embedding_detail=""
+            except Exception as start_exc:
+                embedding_detail=str(start_exc)
     choices=[]
     for model in EMBED_MODELS:
         identity=ollama_model_digest(EMBED_OLLAMA_BASE_URL,model,timeout) if model in embed_names else ""
@@ -1513,10 +1525,17 @@ class Handler(BaseHTTPRequestHandler):
 
     def send_json(self, value, status=200):
         body = json.dumps(value,ensure_ascii=False).encode("utf-8")
-        self.send_response(status)
-        self.send_header("Content-Type","application/json; charset=utf-8")
-        self.send_header("Content-Length",str(len(body)))
-        self.end_headers(); self.wfile.write(body)
+        try:
+            self.send_response(status)
+            self.send_header("Content-Type","application/json; charset=utf-8")
+            self.send_header("Content-Length",str(len(body)))
+            self.end_headers(); self.wfile.write(body)
+            return True
+        except (BrokenPipeError,ConnectionResetError,ConnectionAbortedError):
+            # Browsers routinely cancel status polls during reload/navigation.
+            # The response is already irrelevant, so do not turn that normal
+            # disconnect into a noisy socketserver traceback.
+            return False
 
     def send_stream_event(self, value):
         try:

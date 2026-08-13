@@ -96,7 +96,10 @@ function showSearchNotice(message=''){const notice=$('#search-notice');notice.te
 function fallBackToBm25IfNeeded(){
   if(retrievalMethod==='bm25'||!llmState)return false;
   const choice=llmState.embedding_models?.find(item=>item.model===embeddingModel),index=choice?.semantic_index;
-  if(llmState.embedding_available&&choice?.installed&&index?.ready)return false;
+  // A completed index is enough to attempt semantic retrieval. The server
+  // starts and validates its dedicated query service on demand, and only then
+  // returns a real fallback reason if that recovery fails.
+  if(index?.ready)return false;
   const previous=retrievalMethod;retrievalMethod='bm25';localStorage.setItem('marginalia-retrieval-method',retrievalMethod);syncRetrievalControls();
   showSearchNotice(`${retrievalLabels[previous]} is unavailable because ${embeddingLabel(embeddingModel)} is not ready. Switched to BM25 automatically; the answer model can still generate an answer from BM25 results.`);
   return true

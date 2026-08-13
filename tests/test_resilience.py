@@ -47,6 +47,48 @@ class AnswerFallbackTests(unittest.TestCase):
         self.assertIn("Search results are still available", warning)
 
 
+class ResponseDisconnectTests(unittest.TestCase):
+    def test_json_response_ignores_a_client_disconnect(self):
+        handler=server.Handler.__new__(server.Handler)
+        handler.send_response=lambda *_: None
+        handler.send_header=lambda *_: None
+        handler.end_headers=lambda: None
+
+        class DisconnectedWriter:
+            def write(self, _body):
+                raise ConnectionAbortedError(10053,"client disconnected")
+
+        handler.wfile=DisconnectedWriter()
+        self.assertFalse(handler.send_json({"available":True}))
+
+
+class EmbeddingStatusRecoveryTests(unittest.TestCase):
+    def test_ready_index_restarts_query_service_before_reporting_unavailable(self):
+        model="qwen3-embedding:0.6b"
+        def names(base_url, _timeout=5):
+            if base_url==server.OLLAMA_BASE_URL:
+                return set()
+            if names.embedding_checks==0:
+                names.embedding_checks+=1
+                raise ConnectionError("query service stopped after bulk indexing")
+            return {model}
+        names.embedding_checks=0
+
+        with patch.object(server,"EMBED_MODELS",{model:Path("semantic.sqlite")}), \
+             patch.object(server,"embedding_ollama_executable",return_value=Path("ollama.exe")), \
+             patch.object(server,"ollama_names",side_effect=names), \
+             patch.object(server,"available_answer_models",return_value=[]), \
+             patch.object(server,"semantic_index_status",return_value={"ready":True}), \
+             patch.object(server,"ensure_embedding_ollama") as ensure, \
+             patch.object(server,"ollama_model_digest",return_value="digest"):
+            status=server.ollama_status(timeout=1)
+
+        ensure.assert_called_once_with(timeout=1)
+        self.assertTrue(status["embedding_available"])
+        self.assertTrue(status["embedding_models"][0]["installed"])
+        self.assertEqual(status["embedding_detail"],"")
+
+
 class RefreshResumeTests(unittest.TestCase):
     def test_interrupted_publication_keeps_the_semantic_handoff(self):
         with tempfile.TemporaryDirectory() as directory:
