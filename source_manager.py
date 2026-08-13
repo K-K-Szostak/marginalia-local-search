@@ -20,6 +20,18 @@ SNAPSHOT_GENERATIONS = SNAPSHOT_ROOT / "generations"
 OBSIDIAN_IGNORED_DIRECTORIES = {".obsidian", ".trash", ".git", "__pycache__", "do not read"}
 
 
+class LinkedAttachmentBaseRequired(ValueError):
+    """Raised when Zotero stores portable linked paths but their base is unknown."""
+
+    def __init__(self, count: int):
+        self.count = max(1, int(count))
+        noun = "attachment" if self.count == 1 else "attachments"
+        super().__init__(
+            f"Marginalia found {self.count} Zotero linked {noun} whose base folder could not be "
+            "detected. Choose Zotero's Linked Attachment Base Directory to continue."
+        )
+
+
 def filesystem_path(path: Path) -> str:
     """Return a Windows extended path so snapshot nesting cannot hit MAX_PATH."""
     value = str(Path(path).absolute())
@@ -51,18 +63,21 @@ def _validate_source_boundary(path: Path | None, label: str) -> None:
 
 def discover_zotero_linked_base() -> Path | None:
     """Read Zotero's configured Linked Attachment Base Directory when available."""
-    profiles = Path(os.getenv("APPDATA", "")) / "Zotero" / "Zotero" / "Profiles"
-    try:
-        available = profiles.is_dir()
-    except OSError:
-        available = False
-    if not available:
-        return None
+    profile_roots = [
+        Path.home() / "Library" / "Application Support" / "Zotero" / "Profiles",
+        Path.home() / ".zotero" / "zotero" / "Profiles",
+    ]
+    appdata = str(os.getenv("APPDATA") or "").strip()
+    if appdata:
+        profile_roots.insert(0, Path(appdata) / "Zotero" / "Zotero" / "Profiles")
     pattern = re.compile(r'user_pref\("extensions\.zotero\.baseAttachmentPath",\s*"((?:\\.|[^"\\])*)"\)')
-    try:
-        preference_files = list(profiles.glob("*/prefs.js"))
-    except OSError:
-        return None
+    preference_files = []
+    for profiles in profile_roots:
+        try:
+            if profiles.is_dir():
+                preference_files.extend(profiles.glob("*/prefs.js"))
+        except OSError:
+            continue
     def modified(path):
         try: return path.stat().st_mtime
         except OSError: return 0
@@ -76,6 +91,37 @@ def discover_zotero_linked_base() -> Path | None:
         except (OSError, ValueError):
             continue
     return None
+
+
+def zotero_linked_attachment_status(zotero_path: str | Path | None,
+                                    configured_base: str | Path | None = None) -> dict:
+    """Describe portable linked paths and whether their base can be resolved."""
+    empty = {"relative_count": 0, "base_path": "", "base_source": "", "base_required": False}
+    if not zotero_path:
+        return empty
+    database = Path(zotero_path).expanduser().resolve() / "zotero.sqlite"
+    if not database.is_file():
+        return empty
+    db = None
+    try:
+        db = sqlite3.connect(f"file:{database.as_posix()}?mode=ro", uri=True)
+        relative_count = int(db.execute(
+            "SELECT count(*) FROM itemAttachments WHERE linkMode IN (2,3) AND path LIKE 'attachments:%'"
+        ).fetchone()[0])
+    except sqlite3.Error:
+        relative_count = 0
+    finally:
+        if db is not None:
+            db.close()
+    base_value = str(configured_base or "").strip()
+    base = Path(base_value).expanduser().resolve() if base_value else discover_zotero_linked_base()
+    valid_base = base.resolve() if base and base.is_dir() else None
+    return {
+        "relative_count": relative_count,
+        "base_path": str(valid_base) if valid_base else "",
+        "base_source": ("configured" if valid_base and base_value else "detected" if valid_base else ""),
+        "base_required": bool(relative_count and not valid_base),
+    }
 
 
 def save_config(zotero_path: str = "", obsidian_path: str = "",
@@ -93,6 +139,9 @@ def save_config(zotero_path: str = "", obsidian_path: str = "",
         raise ValueError("The selected Zotero linked-attachment base directory does not exist")
     _validate_source_boundary(zotero, "The Zotero source")
     _validate_source_boundary(obsidian, "The Obsidian vault")
+    linked_status = zotero_linked_attachment_status(zotero, linked_base)
+    if linked_status["base_required"]:
+        raise LinkedAttachmentBaseRequired(linked_status["relative_count"])
     value = {
         "zotero_path": str(zotero) if zotero else "",
         "obsidian_path": str(obsidian) if obsidian else "",
@@ -308,8 +357,12 @@ def snapshot_sources(progress=None, generation_root: Path | None = None, config:
             """).fetchall()
         finally:
             snapshot_db.close()
-        linked_base_value = str(config.get("linked_attachment_base_path") or "").strip()
-        linked_base = Path(linked_base_value).resolve() if linked_base_value else discover_zotero_linked_base()
+        linked_status = zotero_linked_attachment_status(
+            zotero_source, config.get("linked_attachment_base_path")
+        )
+        if linked_status["base_required"]:
+            raise LinkedAttachmentBaseRequired(linked_status["relative_count"])
+        linked_base = Path(linked_status["base_path"]) if linked_status["base_path"] else None
         linked_relatives = set()
         for linked_number, (item_id, key, stored_path, _) in enumerate(linked_rows, 1):
             stored_path = str(stored_path)

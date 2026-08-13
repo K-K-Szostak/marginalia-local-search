@@ -73,7 +73,11 @@
       <h2 id="setup-title">Connect your libraries</h2>
       <p>Choose Zotero, Obsidian, or both. Marginalia creates private working copies and never edits your originals.</p>
       <label class="setup-folder"><span>Zotero data folder <small>Optional</small></span><div><input id="setup-zotero" readonly placeholder="Choose the folder containing zotero.sqlite, or leave empty"><button type="button" data-pick-folder="zotero">Choose…</button><button type="button" id="clear-zotero">Clear</button></div></label>
-      <label class="setup-folder"><span>Zotero linked attachments <small>Optional</small></span><div><input id="setup-linked" readonly placeholder="Linked Attachment Base Directory (usually detected automatically)"><button type="button" data-pick-folder="linked">Choose…</button><button type="button" id="clear-linked">Clear</button></div></label>
+      <section class="setup-linked-fallback hidden" id="setup-linked-fallback" aria-live="polite">
+        <strong>One Zotero folder still needs your help</strong>
+        <p id="setup-linked-reason">Marginalia found portable linked-file paths, but Zotero's Linked Attachment Base Directory could not be detected.</p>
+        <label class="setup-folder"><span>Linked Attachment Base Directory</span><div><input id="setup-linked" readonly placeholder="Choose the base folder used in Zotero"><button type="button" data-pick-folder="linked">Choose…</button><button type="button" id="clear-linked">Clear</button></div></label>
+      </section>
       <label class="setup-folder"><span>Obsidian vault <small>Optional</small></span><div><input id="setup-obsidian" readonly placeholder="Choose your vault, or leave empty"><button type="button" data-pick-folder="obsidian">Choose…</button><button type="button" id="clear-obsidian">Clear</button></div></label>
       <div class="setup-note"><strong>Choose at least one library.</strong><span>AI features are optional. BM25 keyword search works immediately; semantic search and generated answers additionally use local Ollama.</span></div>
       <div class="setup-error hidden" id="setup-error"></div>

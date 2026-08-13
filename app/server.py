@@ -33,7 +33,7 @@ from ocr_support import find_tesseract
 from local_network import loopback_host, loopback_url
 from refresh_manager import active_generation_matches, recover_interrupted_publication, release_bulk_embedding_ollama, report_recovery_failure, resume_required as refresh_resume_required, select_semantic_setup_model, skip_semantic_setup, start as start_refresh, start_semantic, state as refresh_state
 from semantic_models import DEFAULT_MODEL as DEFAULT_EMBED_MODEL, active_model as persisted_active_embedding_model, index_path as semantic_model_index_path, indexed_models as registered_embedding_models, progress_path as semantic_model_progress_path, register_model as register_embedding_model, set_active_model as persist_active_embedding_model, setup_path as semantic_model_setup_path, unregister_model as unregister_embedding_model, valid_model_name
-from source_manager import choose_folder_via_helper, configured as sources_configured, load_config, save_config
+from source_manager import LinkedAttachmentBaseRequired, choose_folder_via_helper, configured as sources_configured, load_config, save_config, zotero_linked_attachment_status
 
 APP = Path(__file__).resolve().parent
 BASE = APP.parent
@@ -1544,10 +1544,16 @@ class Handler(BaseHTTPRequestHandler):
             )
             try: ollama_ready=bool(ollama_names(OLLAMA_BASE_URL,1))
             except Exception: ollama_ready=False
+            linked_status=zotero_linked_attachment_status(
+                config.get("zotero_path"),config.get("linked_attachment_base_path")
+            )
             return self.send_json({
                 "configured":sources_configured(),"library_ready":library_ready,
                 "zotero_path":config.get("zotero_path",""),"obsidian_path":config.get("obsidian_path",""),
                 "linked_attachment_base_path":config.get("linked_attachment_base_path",""),
+                "linked_attachment_base_required":linked_status["base_required"],
+                "linked_attachment_relative_count":linked_status["relative_count"],
+                "linked_attachment_base_detected":linked_status["base_source"]=="detected",
                 "tesseract_ready":bool(find_tesseract()),"ollama_ready":ollama_ready,
                 "refresh":refresh_state(),
             })
@@ -1867,12 +1873,24 @@ class Handler(BaseHTTPRequestHandler):
             try:
                 config=save_config(str(body.get("zotero_path") or ""),str(body.get("obsidian_path") or ""),
                   str(body.get("linked_attachment_base_path") or ""))
+            except LinkedAttachmentBaseRequired as exc:
+                return self.send_json({"error":str(exc),"code":"linked_attachment_base_required",
+                  "linked_attachment_base_required":True,"linked_attachment_relative_count":exc.count},400)
             except ValueError as exc:
                 return self.send_json({"error":str(exc)},400)
             started=start_refresh() if body.get("start_refresh",True) else False
             return self.send_json({"configured":True,"config":config,"refresh_started":started})
         if self.path=="/api/refresh/start":
             if not sources_configured(): return self.send_json({"error":"Configure your source folders first"},400)
+            config=load_config()
+            linked_status=zotero_linked_attachment_status(
+                config.get("zotero_path"),config.get("linked_attachment_base_path")
+            )
+            if linked_status["base_required"]:
+                count=linked_status["relative_count"]
+                message=str(LinkedAttachmentBaseRequired(count))
+                return self.send_json({"error":message,"code":"linked_attachment_base_required",
+                  "linked_attachment_base_required":True,"linked_attachment_relative_count":count},409)
             started=start_refresh()
             return self.send_json({"started":started,"refresh":refresh_state()},202 if started else 409)
         if self.path=="/api/history":

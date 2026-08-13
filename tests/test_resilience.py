@@ -333,6 +333,17 @@ class ObsidianAssetTests(unittest.TestCase):
 
 
 class SnapshotGenerationTests(unittest.TestCase):
+    def test_zotero_linked_base_is_read_from_profile_preferences(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory); appdata=root/"AppData"; profile=appdata/"Zotero"/"Zotero"/"Profiles"/"abc.default"
+            linked_base=root/"linked"; profile.mkdir(parents=True); linked_base.mkdir()
+            preference=json.dumps(str(linked_base))
+            (profile/"prefs.js").write_text(
+                f'user_pref("extensions.zotero.baseAttachmentPath", {preference});',encoding="utf-8")
+            with patch.dict(os.environ,{"APPDATA":str(appdata)}),patch.object(Path,"home",return_value=root/"home"):
+                detected=source_manager.discover_zotero_linked_base()
+            self.assertEqual(detected,linked_base.resolve())
+
     def test_source_containing_snapshot_output_is_rejected(self):
         with tempfile.TemporaryDirectory() as directory:
             root=Path(directory); vault=root/"vault"; managed=vault/"source_snapshots"
@@ -439,6 +450,64 @@ class SnapshotGenerationTests(unittest.TestCase):
                 source_manager.snapshot_sources(generation_root=generation,config=config)
             self.assertEqual((generation/"zotero"/"linked_attachments"/"REL123"/"article.pdf").read_bytes(),
                              b"relative linked file")
+
+    def test_relative_linked_attachment_uses_automatically_detected_base(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory); zotero=root/"zotero"; zotero.mkdir()
+            linked_base=root/"linked"; (linked_base/"papers").mkdir(parents=True)
+            (linked_base/"papers"/"article.pdf").write_bytes(b"automatically resolved")
+            db=sqlite3.connect(zotero/"zotero.sqlite")
+            db.executescript("CREATE TABLE items(itemID INTEGER PRIMARY KEY,key TEXT); CREATE TABLE itemAttachments(itemID INTEGER,path TEXT,linkMode INTEGER);")
+            db.execute("INSERT INTO items VALUES(1,'AUTO123')")
+            db.execute("INSERT INTO itemAttachments VALUES(1,'attachments:papers/article.pdf',2)")
+            db.commit(); db.close()
+            managed=root/"managed"; generations=managed/"generations"
+            config={"zotero_path":str(zotero),"obsidian_path":"","linked_attachment_base_path":""}
+            progress_messages=[]
+            with patch.object(source_manager,"ROOT",root), \
+                 patch.object(source_manager,"SNAPSHOT_ROOT",managed), \
+                 patch.object(source_manager,"SNAPSHOT_GENERATIONS",generations), \
+                 patch.object(source_manager,"discover_zotero_linked_base",return_value=linked_base):
+                status=source_manager.zotero_linked_attachment_status(zotero)
+                generation=source_manager.reserve_snapshot_generation()
+                source_manager.snapshot_sources(
+                    lambda *message: progress_messages.append(message),
+                    generation_root=generation,config=config)
+            self.assertEqual(status["base_source"],"detected")
+            self.assertFalse(status["base_required"])
+            copied=generation/"zotero"/"linked_attachments"/"AUTO123"/"article.pdf"
+            self.assertTrue(copied.is_file(),progress_messages)
+            self.assertEqual(copied.read_bytes(),b"automatically resolved")
+
+    def test_missing_relative_link_base_requests_manual_fallback(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory); zotero=root/"zotero"; zotero.mkdir()
+            db=sqlite3.connect(zotero/"zotero.sqlite")
+            db.execute("CREATE TABLE itemAttachments(itemID INTEGER,path TEXT,linkMode INTEGER)")
+            db.executemany("INSERT INTO itemAttachments VALUES(?,?,2)",(
+                (1,"attachments:first.pdf"),(2,"attachments:second.pdf")))
+            db.commit(); db.close()
+            with patch.object(source_manager,"CONFIG_PATH",root/"config.json"), \
+                 patch.object(source_manager,"discover_zotero_linked_base",return_value=None):
+                status=source_manager.zotero_linked_attachment_status(zotero)
+                with self.assertRaises(source_manager.LinkedAttachmentBaseRequired) as raised:
+                    source_manager.save_config(zotero_path=str(zotero))
+            self.assertTrue(status["base_required"])
+            self.assertEqual(status["relative_count"],2)
+            self.assertEqual(raised.exception.count,2)
+
+    def test_absolute_linked_paths_never_request_a_base_directory(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory); zotero=root/"zotero"; zotero.mkdir()
+            db=sqlite3.connect(zotero/"zotero.sqlite")
+            db.execute("CREATE TABLE itemAttachments(itemID INTEGER,path TEXT,linkMode INTEGER)")
+            db.executemany("INSERT INTO itemAttachments VALUES(?,?,2)",(
+                (1,str(root/"folder-one"/"first.pdf")),(2,str(root/"folder-two"/"second.pdf"))))
+            db.commit(); db.close()
+            with patch.object(source_manager,"discover_zotero_linked_base",return_value=None):
+                status=source_manager.zotero_linked_attachment_status(zotero)
+            self.assertEqual(status["relative_count"],0)
+            self.assertFalse(status["base_required"])
 
 
     def test_seeded_generation_breaks_hardlink_before_replacing_changed_file(self):

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import http.client
+import json
 import os
 import threading
 import unittest
@@ -93,6 +94,28 @@ class LocalApiSecurityTests(unittest.TestCase):
         headers=self.authorized_headers(); headers["Content-Type"]="text/plain"
         status,_,_=self.request("POST","/api/ai/skip",headers=headers,body=b"{}")
         self.assertEqual(status,415)
+
+    def test_setup_status_exposes_linked_base_fallback_only_when_required(self):
+        linked_status={"relative_count":3,"base_path":"","base_source":"","base_required":True}
+        with patch.object(server,"load_config",return_value={"zotero_path":"Zotero","obsidian_path":""}), \
+             patch.object(server,"sources_configured",return_value=True), \
+             patch.object(server,"zotero_linked_attachment_status",return_value=linked_status):
+            status,_,body=self.request("GET","/api/setup/status",headers=self.authorized_headers())
+        payload=json.loads(body)
+        self.assertEqual(status,200)
+        self.assertTrue(payload["linked_attachment_base_required"])
+        self.assertEqual(payload["linked_attachment_relative_count"],3)
+
+    def test_configure_returns_specific_linked_base_fallback(self):
+        headers=self.authorized_headers(); headers["Content-Type"]="application/json"
+        request_body=json.dumps({"zotero_path":"Zotero","obsidian_path":""})
+        with patch.object(server,"refresh_state",return_value={"running":False}), \
+             patch.object(server,"save_config",side_effect=server.LinkedAttachmentBaseRequired(2)):
+            status,_,body=self.request("POST","/api/setup/configure",headers=headers,body=request_body)
+        payload=json.loads(body)
+        self.assertEqual(status,400)
+        self.assertEqual(payload["code"],"linked_attachment_base_required")
+        self.assertEqual(payload["linked_attachment_relative_count"],2)
 
 
 if __name__ == "__main__":
