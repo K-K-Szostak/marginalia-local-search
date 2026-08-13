@@ -333,6 +333,14 @@ class ObsidianAssetTests(unittest.TestCase):
 
 
 class SnapshotGenerationTests(unittest.TestCase):
+    def test_non_vault_folder_is_rejected_as_obsidian_source(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory); ordinary=root/"AppData"; ordinary.mkdir()
+            with patch.object(source_manager,"CONFIG_PATH",root/"config.json"):
+                with self.assertRaisesRegex(ValueError,"not an Obsidian vault"):
+                    source_manager.save_config(obsidian_path=str(ordinary))
+            self.assertFalse(source_manager.configured({"zotero_path":"","obsidian_path":str(ordinary)}))
+
     def test_zotero_linked_base_is_read_from_profile_preferences(self):
         with tempfile.TemporaryDirectory() as directory:
             root=Path(directory); appdata=root/"AppData"; profile=appdata/"Zotero"/"Zotero"/"Profiles"/"abc.default"
@@ -397,6 +405,23 @@ class SnapshotGenerationTests(unittest.TestCase):
 
             self.assertEqual(result["skipped"], 1)
             self.assertFalse((target / changing.name).exists())
+
+    def test_snapshot_skips_source_file_locked_during_copy(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory); source=root/"source"; target=root/"target"
+            source.mkdir(); locked=source/"locked.drm"; locked.write_text("private")
+            with patch.object(source_manager.shutil,"copy2",side_effect=PermissionError(32,"locked")):
+                result=source_manager.mirror_tree(source,target)
+            self.assertEqual(result["skipped"],1)
+            self.assertFalse((target/locked.name).exists())
+
+    def test_failed_snapshot_cleanup_does_not_raise(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory); generations=root/"generations"; generation=generations/"failed"
+            generation.mkdir(parents=True); (generation/"locked.drm").write_text("private")
+            with patch.object(source_manager,"SNAPSHOT_GENERATIONS",generations), \
+                 patch.object(source_manager.shutil,"rmtree",side_effect=PermissionError(5,"denied")):
+                source_manager.discard_snapshot_generation({"snapshot_root":str(generation)})
 
     def test_obsidian_snapshot_is_built_in_reserved_generation(self):
         with tempfile.TemporaryDirectory() as directory:

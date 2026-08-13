@@ -139,6 +139,10 @@ def save_config(zotero_path: str = "", obsidian_path: str = "",
         raise ValueError("The selected Zotero linked-attachment base directory does not exist")
     _validate_source_boundary(zotero, "The Zotero source")
     _validate_source_boundary(obsidian, "The Obsidian vault")
+    if obsidian and not (obsidian / ".obsidian").is_dir():
+        raise ValueError(
+            "The selected folder is not an Obsidian vault. Choose the folder that contains the .obsidian directory."
+        )
     linked_status = zotero_linked_attachment_status(zotero, linked_base)
     if linked_status["base_required"]:
         raise LinkedAttachmentBaseRequired(linked_status["relative_count"])
@@ -158,7 +162,9 @@ def configured(value: dict | None = None) -> bool:
     zotero = value.get("zotero_path", "")
     obsidian = value.get("obsidian_path", "")
     zotero_valid = bool(zotero and (Path(zotero) / "zotero.sqlite").is_file())
-    obsidian_valid = bool(obsidian and Path(obsidian).is_dir())
+    obsidian_valid = bool(
+        obsidian and Path(obsidian).is_dir() and (Path(obsidian) / ".obsidian").is_dir()
+    )
     requested = bool(zotero or obsidian)
     try:
         if zotero: _validate_source_boundary(Path(zotero), "The Zotero source")
@@ -227,6 +233,7 @@ def mirror_tree(source: Path, target: Path, progress=None, label="files", ignore
         relative = path.relative_to(source)
         destination = target / relative
         os.makedirs(filesystem_path(destination.parent), exist_ok=True)
+        temporary = None
         try:
             if _same_file(path, destination):
                 reused += 1
@@ -237,15 +244,24 @@ def mirror_tree(source: Path, target: Path, progress=None, label="files", ignore
                 os.replace(filesystem_path(temporary), filesystem_path(destination))
                 copied += 1
                 action = "Copied"
-        except FileNotFoundError:
+        except (FileNotFoundError, PermissionError) as exc:
             # Zotero may atomically replace or remove .zotero-ft-cache files
-            # while its storage tree is being enumerated.
-            if path.exists():
+            # while its storage tree is being enumerated. Obsidian vaults can
+            # likewise contain transiently locked files owned by another app.
+            source_changed = isinstance(exc, FileNotFoundError) and not path.exists()
+            source_locked = isinstance(exc, PermissionError)
+            if not source_changed and not source_locked:
                 raise
+            if temporary is not None:
+                try:
+                    os.unlink(filesystem_path(temporary))
+                except (FileNotFoundError, PermissionError):
+                    pass
             source_relatives.discard(relative)
             skipped += 1
             if progress:
-                progress(f"Skipped changing {label}: {relative.as_posix()}", number, len(files))
+                reason = "locked" if source_locked else "changing"
+                progress(f"Skipped {reason} {label}: {relative.as_posix()}", number, len(files))
             continue
         if progress:
             progress(f"{action} {label}: {relative.as_posix()}", number, len(files))
@@ -440,6 +456,21 @@ def publish_source_pointers(snapshot: dict) -> None:
         os.replace(temporary, path)
 
 
+def _remove_snapshot_tree(path: Path) -> None:
+    """Best-effort removal that handles read-only copied files on Windows."""
+    def retry_readonly(function, name, excinfo):
+        try:
+            os.chmod(name, 0o700)
+            function(name)
+        except OSError:
+            pass
+    try:
+        shutil.rmtree(filesystem_path(path), onexc=retry_readonly)
+    except OSError:
+        # Cleanup must never hide the refresh error that caused the discard.
+        pass
+
+
 def cleanup_snapshot_generations(current_root: str) -> None:
     """Remove generations no longer referenced by the active databases."""
     root = SNAPSHOT_GENERATIONS.resolve()
@@ -449,11 +480,11 @@ def cleanup_snapshot_generations(current_root: str) -> None:
     for candidate in root.iterdir():
         resolved = candidate.resolve()
         if resolved != current and resolved.parent == root and resolved.is_dir():
-            shutil.rmtree(filesystem_path(resolved))
+            _remove_snapshot_tree(resolved)
     for legacy_name in ("zotero", "obsidian"):
         legacy = (SNAPSHOT_ROOT / legacy_name).resolve()
         if legacy.parent == SNAPSHOT_ROOT.resolve() and legacy.is_dir():
-            shutil.rmtree(filesystem_path(legacy))
+            _remove_snapshot_tree(legacy)
 
 
 def discard_snapshot_generation(snapshot: dict | None) -> None:
@@ -462,7 +493,7 @@ def discard_snapshot_generation(snapshot: dict | None) -> None:
     root = SNAPSHOT_GENERATIONS.resolve()
     candidate = Path(snapshot["snapshot_root"]).resolve()
     if candidate.parent == root and candidate.is_dir():
-        shutil.rmtree(filesystem_path(candidate))
+        _remove_snapshot_tree(candidate)
 
 
 def choose_folder(kind: str) -> str:
